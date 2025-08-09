@@ -970,7 +970,8 @@ add_chunk_to_vacuum(Hypertable *ht, Oid chunk_relid, void *arg)
 	chunk_range_var->relname = NameStr(chunk->fd.table_name);
 	chunk_range_var->schemaname = NameStr(chunk->fd.schema_name);
 	chunk_vacuum_rel =
-		makeVacuumRelation(chunk_range_var, chunk_relid, ctx->ht_vacuum_rel->va_cols);
+		makeVacuumRelation(chunk_range_var, chunk_relid,
+						   ctx->ht_vacuum_rel->va_cols ? copyObject(ctx->ht_vacuum_rel->va_cols) : NIL);
 	ctx->chunk_rels = lappend(ctx->chunk_rels, chunk_vacuum_rel);
 
 	/* If we have a compressed chunk and the chunk is not using hypercore
@@ -1061,10 +1062,21 @@ process_vacuum(ProcessUtilityArgs *args)
 
 	is_vacuumcmd = stmt->is_vacuumcmd;
 
+	/*
+	 * Be conservative: only intercept top-level VACUUM commands. Nested
+	 * invocations (e.g., via SPI / function validation) can have different
+	 * parsetree shapes and contexts and are better left to core.
+	 */
+	if (!is_toplevel)
+	{
+		elog(DEBUG1, "TimescaleDB: Skipping non-toplevel VACUUM processing");
+		return DDL_CONTINUE;
+	}
+
 #if PG16_GE
 	if (is_vacuumcmd)
 	{
-		/* Look for new option ONLY_DATABASE_STATS */
+		/* Look for new option ONLY_DATABASE_STATS and VACUUM FULL */
 		foreach (lc, stmt->options)
 		{
 			DefElem *opt = (DefElem *) lfirst(lc);
@@ -1072,7 +1084,33 @@ process_vacuum(ProcessUtilityArgs *args)
 			/* if "only_database_stats" is defined then don't execute our custom code and return to
 			 * the postgres execution for the proper validations */
 			if (strcmp(opt->defname, "only_database_stats") == 0)
+			{
+				elog(DEBUG1, "TimescaleDB: Skipping VACUUM with only_database_stats option");
 				return DDL_CONTINUE;
+			}
+
+			/* Skip VACUUM FULL to avoid interfering with catalog rewrites */
+			if (strcmp(opt->defname, "full") == 0)
+			{
+				elog(DEBUG1, "TimescaleDB: Skipping VACUUM FULL processing");
+				return DDL_CONTINUE;
+			}
+		}
+	}
+#else
+	/* For PostgreSQL < 16, also check for VACUUM FULL */
+	if (is_vacuumcmd)
+	{
+		foreach (lc, stmt->options)
+		{
+			DefElem *opt = (DefElem *) lfirst(lc);
+
+			/* Skip VACUUM FULL to avoid interfering with catalog rewrites */
+			if (strcmp(opt->defname, "full") == 0)
+			{
+				elog(DEBUG1, "TimescaleDB: Skipping VACUUM FULL processing");
+				return DDL_CONTINUE;
+			}
 		}
 	}
 #endif
@@ -1085,7 +1123,23 @@ process_vacuum(ProcessUtilityArgs *args)
 
 		foreach (lc, stmt->rels)
 		{
-			VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
+			Node *n = lfirst(lc);
+			VacuumRelation *vacuum_rel = NULL;
+
+			if (IsA(n, VacuumRelation))
+				vacuum_rel = castNode(VacuumRelation, n);
+			else if (IsA(n, RangeVar))
+			{
+				/* Build a VacuumRelation wrapper if a bare RangeVar appears */
+				vacuum_rel = makeVacuumRelation(castNode(RangeVar, n), InvalidOid, NIL);
+			}
+			else
+			{
+				/* Unknown node type – skip defensively */
+				elog(DEBUG1, "TimescaleDB: Skipping unknown node type in VACUUM rels list");
+				continue;
+			}
+
 			Oid table_relid = vacuum_rel->oid;
 
 			if (!OidIsValid(table_relid) && vacuum_rel->relation != NULL)
@@ -1108,7 +1162,24 @@ process_vacuum(ProcessUtilityArgs *args)
 		ts_cache_release(&hcache);
 	}
 
-	stmt->rels = list_concat(ctx.chunk_rels, vacuum_rels);
+
+	/* Build isolated list for ExecVacuum: deep-copy originals + append chunk_rels.
+	 * ExecVacuum is allowed to pfree these nodes; original stmt->rels remains intact. */
+	{
+		List *my_rels = NIL;
+		ListCell *lc2;
+		/* clone originals we decided to keep */
+		foreach (lc2, vacuum_rels)
+		{
+			VacuumRelation *vr = lfirst_node(VacuumRelation, lc2);
+			RangeVar *rv = vr->relation ? copyObject(vr->relation) : NULL;
+			List *cols = vr->va_cols ? copyObject(vr->va_cols) : NIL;
+			my_rels = lappend(my_rels, makeVacuumRelation(rv, vr->oid, cols));
+		}
+		/* append chunk rels (their va_cols were deep-copied in add_chunk_to_vacuum) */
+		my_rels = list_concat(my_rels, ctx.chunk_rels);
+		stmt->rels = my_rels;
+	}
 
 	/* The list of rels to vacuum could be empty if we are only vacuuming a
 	 * tiered hypertable with no local chunks. In that case, we don't want to vacuum locally. */
