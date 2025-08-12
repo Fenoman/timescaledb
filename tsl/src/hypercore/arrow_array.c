@@ -100,7 +100,15 @@ arrow_private_release(ArrowArray *array)
 	{                                                                                              \
 		if ((unsigned long) (NEEDED) >= (unsigned long) (CAPACITY))                                \
 		{                                                                                          \
-			(CAPACITY) *= 2;                                                                       \
+			while ((unsigned long) (CAPACITY) <= (unsigned long) (NEEDED))                        \
+			{                                                                                      \
+				/* Check for overflow before doubling */                                          \
+				if ((CAPACITY) > INT64_MAX / 2)                                                   \
+					ereport(ERROR,                                                                 \
+							(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),                             \
+							 errmsg("arrow buffer size overflow")));                              \
+				(CAPACITY) *= 2;                                                                   \
+			}                                                                                      \
 			(BUFFER) = repalloc((BUFFER), (CAPACITY));                                             \
 		}                                                                                          \
 	} while (0)
@@ -151,13 +159,18 @@ arrow_from_iterator_varlen(MemoryContext mcxt, DecompressionIterator *iterator, 
 	 * over-estimation in some cases, but avoids reallocation for the common case. */
 	int64 offsets_capacity = sizeof(int32) * (TARGET_COMPRESSED_BATCH_SIZE + 1);
 	int64 data_capacity = 4 * offsets_capacity; /* Starting capacity of the data buffer in bytes */
-	int64 validity_capacity = sizeof(uint64) * (pad_to_multiple(64, offsets_capacity) / 64);
+    /*
+     * Validity bitmap is addressed in 64-bit words (see arrow_set_row_validity).
+     * Start with capacity for at least one 64-bit word and grow as needed.
+     */
+    int64 validity_capacity = sizeof(uint64) * 8; /* Start with 8 words = 512 bits */
 	int32 endpos = 0; /* Can be 32 or 64 bits signed integers */
 	int64 array_length;
 	int64 null_count = 0;
-	int32 *offsets_buffer = MemoryContextAlloc(mcxt, offsets_capacity);
-	uint8 *data_buffer = MemoryContextAlloc(mcxt, data_capacity);
-	uint64 *validity_buffer = MemoryContextAlloc(mcxt, validity_capacity);
+    int32 *offsets_buffer = MemoryContextAlloc(mcxt, offsets_capacity);
+    uint8 *data_buffer = MemoryContextAlloc(mcxt, data_capacity);
+    /* Zero to keep unused tail bits clean for popcount-based consumers */
+    uint64 *validity_buffer = MemoryContextAllocZero(mcxt, validity_capacity);
 
 	/* Just a precaution: type should be varlen */
 	Assert(get_typlen(typid) == TYPLEN_VARLEN);
@@ -178,17 +191,30 @@ arrow_from_iterator_varlen(MemoryContext mcxt, DecompressionIterator *iterator, 
 					 datum_as_string(typid, result.val, result.is_null),
 					 array_length,
 					 endpos,
-					 (unsigned long) VARSIZE_ANY(result.val), /* cast for 32-bit builds */
+					 result.is_null ? 0 : (unsigned long) VARSIZE_ANY(result.val), /* cast for 32-bit builds */
 					 offsets_capacity,
 					 data_capacity);
 
-		/* Offsets buffer contains array_length + 1 offsets */
-		EXTEND_BUFFER_IF_NEEDED(offsets_buffer,
-								sizeof(*offsets_buffer) * (array_length + 1),
-								offsets_capacity);
-		EXTEND_BUFFER_IF_NEEDED(validity_buffer,
-								sizeof(uint64) * (pad_to_multiple(64, array_length) / 64),
-								validity_capacity);
+		/* Check for potential overflow in array_length + 1 */
+		if (array_length >= INT64_MAX - 1)
+			ereport(ERROR,
+					(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+					 errmsg("array length overflow")));
+        /*
+         * Offsets buffer contains (array_length + 1) valid indices and we will
+         * write index [array_length + 1] below, so ensure space for (array_length + 2)
+         * elements in total.
+         */
+        EXTEND_BUFFER_IF_NEEDED(offsets_buffer,
+                                sizeof(*offsets_buffer) * (array_length + 2),
+                                offsets_capacity);
+        /*
+         * We are about to set bit for row number = array_length (0-based).
+         * Ensure there is space for word index (array_length / 64).
+         */
+        EXTEND_BUFFER_IF_NEEDED(validity_buffer,
+                                sizeof(uint64) * ((array_length / 64) + 1),
+                                validity_capacity);
 
 		arrow_set_row_validity(validity_buffer, array_length, !result.is_null);
 
@@ -199,6 +225,13 @@ arrow_from_iterator_varlen(MemoryContext mcxt, DecompressionIterator *iterator, 
 			/* We store all the varlen data here, including header, so we are
 			 * not strictly following the arrow format. */
 			const int varlen = VARSIZE_ANY(result.val);
+
+			/* ensure varlena payload fits into 32-bit offset space */
+			if ((int64) endpos + varlen > PG_INT32_MAX)
+				ereport(ERROR,
+						(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+						 errmsg("arrow varlen buffer size overflow")));
+
 			EXTEND_BUFFER_IF_NEEDED(data_buffer, endpos + varlen, data_capacity);
 			memcpy(&data_buffer[endpos], DatumGetPointer(result.val), varlen);
 			endpos += varlen;
@@ -227,9 +260,11 @@ arrow_from_iterator_fixlen(MemoryContext mcxt, DecompressionIterator *iterator, 
 {
 	const bool typbyval = get_typbyval(typid);
 	int64 data_capacity = 64 * typlen; /* Capacity of the data buffer */
-	int64 validity_capacity = sizeof(uint64) * (pad_to_multiple(64, data_capacity) / 64);
+    /* Validity bitmap grows in 64-bit words; Start with 8 words = 512 bits. */
+    int64 validity_capacity = sizeof(uint64) * 8;
 	uint8 *data_buffer = MemoryContextAlloc(mcxt, data_capacity * sizeof(uint8));
-	uint64 *validity_buffer = MemoryContextAlloc(mcxt, validity_capacity);
+    /* Zero to keep unused tail bits clean for popcount-based consumers */
+    uint64 *validity_buffer = MemoryContextAllocZero(mcxt, validity_capacity);
 	int64 array_length;
 	int64 null_count = 0;
 
@@ -249,8 +284,11 @@ arrow_from_iterator_fixlen(MemoryContext mcxt, DecompressionIterator *iterator, 
 		if (result.is_done)
 			break;
 
-		EXTEND_BUFFER_IF_NEEDED(validity_buffer, array_length / 8, validity_capacity);
-		EXTEND_BUFFER_IF_NEEDED(data_buffer, typlen * array_length, data_capacity);
+        /* Ensure capacity for the 64-bit word containing bit array_length. */
+        EXTEND_BUFFER_IF_NEEDED(validity_buffer,
+                                sizeof(uint64) * ((array_length / 64) + 1),
+                                validity_capacity);
+		EXTEND_BUFFER_IF_NEEDED(data_buffer, typlen * (array_length + 1), data_capacity);
 
 		arrow_set_row_validity(validity_buffer, array_length, !result.is_null);
 
