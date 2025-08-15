@@ -146,9 +146,11 @@ typedef struct RowDecompressor
 	bool *decompressed_is_nulls;
 
 	MemoryContext per_compressed_row_ctx;
+	MemoryContext slot_mcxt;
 	int64 batches_decompressed;
 	int64 tuples_decompressed;
 
+	int max_slots;
 	TupleTableSlot **decompressed_slots;
 	int unprocessed_tuples;
 	AttrMap *attrmap;
