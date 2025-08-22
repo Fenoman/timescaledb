@@ -6,9 +6,12 @@
 #include <postgres.h>
 #include <access/attnum.h>
 #include <access/heapam.h>
+#include <access/heaptoast.h>
 #include <access/hio.h>
 #include <access/htup_details.h>
+#include <access/tupmacs.h>
 #include <access/relscan.h>
+#include <catalog/pg_am.h>
 #include <access/rewriteheap.h>
 #include <access/sdir.h>
 #include <access/skey.h>
@@ -3346,14 +3349,81 @@ hypercore_index_validate_scan(Relation compressionRelation, Relation indexRelati
 static bool
 hypercore_relation_needs_toast_table(Relation rel)
 {
-	return false;
+	TupleDesc tupdesc = RelationGetDescr(rel);
+	volatile int32 data_length = 0;
+	volatile bool maxlength_unknown = false;
+	volatile bool has_toastable_attrs = false;
+	int32 tuple_length;
+	volatile int i;
+	
+	/* 
+	 * Use the same logic as PostgreSQL's heap AM to determine TOAST necessity.
+	 * This ensures consistency and handles edge cases properly.
+	 */
+	for (i = 0; i < tupdesc->natts; i++)
+	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+		
+		if (attr->attisdropped)
+			continue;
+			
+		data_length = att_align_nominal(data_length, attr->attalign);
+		
+		if (attr->attlen > 0)
+		{
+			/* Fixed-length types are never toastable */
+			data_length += attr->attlen;
+		}
+		else
+		{
+			int32 maxlen;
+			
+			/* type_maximum_size() can fail for invalid type/typmod combinations */
+			PG_TRY();
+			{
+				maxlen = type_maximum_size(attr->atttypid, attr->atttypmod);
+			}
+			PG_CATCH();
+			{
+				/* If type_maximum_size fails, treat as unknown length.
+				 * This is conservative - we assume TOAST might be needed. */
+				FlushErrorState();
+				maxlength_unknown = true;
+				maxlen = -1;
+			}
+			PG_END_TRY();
+			
+			if (maxlen < 0)
+				maxlength_unknown = true;
+			else
+				data_length += maxlen;
+				
+			if (attr->attstorage != TYPSTORAGE_PLAIN)
+				has_toastable_attrs = true;
+		}
+	}
+	
+	if (!has_toastable_attrs)
+		return false;  /* nothing to toast? */
+	if (maxlength_unknown)
+		return true;   /* any unlimited-length attrs? */
+		
+	tuple_length = MAXALIGN(SizeofHeapTupleHeader +
+							BITMAPLEN(tupdesc->natts)) +
+				   MAXALIGN(data_length);
+				   
+	return (tuple_length > (int32)TOAST_TUPLE_THRESHOLD);
 }
 
 static Oid
 hypercore_relation_toast_am(Relation rel)
 {
-	FEATURE_NOT_SUPPORTED;
-	return InvalidOid;
+	/* 
+	 * For TOAST tables, use the standard heap access method.
+	 * Hypercore data is stored in the main relation using hypercore AM,
+	 * but TOAST data should use the standard PostgreSQL heap AM.
+	 */
+	return HEAP_TABLE_AM_OID;
 }
 
 /* ------------------------------------------------------------------------
@@ -3580,7 +3650,14 @@ static void
 hypercore_fetch_toast_slice(Relation toastrel, Oid valueid, int32 attrsize, int32 sliceoffset,
 							int32 slicelength, struct varlena *result)
 {
-	FEATURE_NOT_SUPPORTED;
+	/*
+	 * Hypercore uses standard heap AM for TOAST tables.
+	 * We need to delegate TOAST slice fetching to the heap AM implementation.
+	 * 
+	 * The TOAST table itself uses heap AM (as specified in hypercore_relation_toast_am),
+	 * so we can directly use heap's fetch implementation.
+	 */
+	heap_fetch_toast_slice(toastrel, valueid, attrsize, sliceoffset, slicelength, result);
 }
 
 /* ------------------------------------------------------------------------
