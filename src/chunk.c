@@ -674,7 +674,7 @@ set_attoptions(Relation ht_rel, Oid chunk_oid)
 }
 
 static void
-create_toast_table(CreateStmt *stmt, Oid chunk_oid)
+create_toast_table(CreateStmt *stmt, Oid chunk_oid, Relation parent_rel)
 {
 	/* similar to tcop/utility.c */
 	static char *validnsps[] = HEAP_RELOPT_NAMESPACES;
@@ -683,7 +683,28 @@ create_toast_table(CreateStmt *stmt, Oid chunk_oid)
 
 	(void) heap_reloptions(RELKIND_TOASTVALUE, toast_options, true);
 
-	NewRelationCreateToastTable(chunk_oid, toast_options);
+	/* 
+	 * Check if parent hypertable has TOAST-able columns. If it does,
+	 * force TOAST table creation for the chunk even if it's initially empty.
+	 * This prevents "row is too big" errors during compression when large
+	 * values are inserted later.
+	 */
+	bool parent_has_toast = OidIsValid(parent_rel->rd_rel->reltoastrelid);
+	
+	if (parent_has_toast)
+	{
+		/* Parent has TOAST, force TOAST creation for chunk.
+		 * Use AlterTableCreateToastTable directly to ensure TOAST table
+		 * is created even for empty chunks. This is more reliable than
+		 * NewRelationCreateToastTable which may skip creation. */
+		elog(DEBUG1, "Creating TOAST table for chunk %u (parent has TOAST)", chunk_oid);
+		AlterTableCreateToastTable(chunk_oid, toast_options, AccessExclusiveLock);
+	}
+	else
+	{
+		/* No TOAST in parent, let PostgreSQL decide based on chunk's attributes */
+		NewRelationCreateToastTable(chunk_oid, toast_options);
+	}
 }
 
 static void
@@ -793,7 +814,7 @@ ts_chunk_create_table(const Chunk *chunk, const Hypertable *ht, const char *tabl
 		 * need to create a toast table explicitly for some of the option
 		 * setting to work
 		 */
-		create_toast_table(&stmt, address.objectId);
+		create_toast_table(&stmt, address.objectId, rel);
 
 		/*
 		 * Some options require being table owner to set for example statistics
