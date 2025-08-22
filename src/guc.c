@@ -160,6 +160,7 @@ bool ts_guc_enable_vectorized_aggregation = true;
 bool ts_guc_enable_custom_hashagg = false;
 TSDLLEXPORT bool ts_guc_enable_compression_indexscan = false;
 TSDLLEXPORT bool ts_guc_enable_bulk_decompression = true;
+TSDLLEXPORT bool ts_guc_enable_virtual_slots_decompression = true;
 TSDLLEXPORT bool ts_guc_auto_sparse_indexes = true;
 TSDLLEXPORT bool ts_guc_enable_sparse_index_bloom = true;
 TSDLLEXPORT bool ts_guc_default_hypercore_use_access_method = false;
@@ -652,6 +653,19 @@ _guc_init(void)
 							 "Recheck tuples during DML decompression to only decompress batches "
 							 "with matching tuples",
 							 &ts_guc_enable_dml_decompression_tuple_filtering,
+							 true,
+							 PGC_USERSET,
+							 0,
+							 NULL,
+							 NULL,
+							 NULL);
+
+	DefineCustomBoolVariable(MAKE_EXTOPTION("enable_virtual_slots_decompression"),
+							 "Use virtual tuple slots during decompression",
+							 "Use virtual tuple slots instead of heap tuples to avoid 'row is too big' "
+							 "errors for large decompressed values. Virtual slots delegate TOASTing to "
+							 "the heap AM during insertion.",
+							 &ts_guc_enable_virtual_slots_decompression,
 							 true,
 							 PGC_USERSET,
 							 0,

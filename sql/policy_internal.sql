@@ -43,140 +43,212 @@ RETURNS void AS '@MODULE_PATHNAME@', 'ts_policy_process_hyper_inval_check'
 LANGUAGE C;
 
 CREATE OR REPLACE PROCEDURE
-_timescaledb_functions.policy_compression_execute(
-  job_id              INTEGER,
-  htid                INTEGER,
-  lag                 ANYELEMENT,
-  maxchunks           INTEGER,
-  verbose_log         BOOLEAN,
-  recompress_enabled  BOOLEAN,
-  reindex_enabled     BOOLEAN,
-  use_creation_time   BOOLEAN,
-  useam               BOOLEAN = NULL)
-AS $$
+_timescaledb_functions.policy_compression_execute
+(
+    job_id             integer,
+    htid               integer,
+    lag                anyelement,
+    maxchunks          integer,
+    verbose_log        boolean,
+    recompress_enabled boolean,
+    reindex_enabled    boolean,
+    use_creation_time  boolean,
+    useam              boolean = NULL
+)
+AS
+$$
 DECLARE
-  htoid       REGCLASS;
-  chunk_rec   RECORD;
-  idx_rec     RECORD;
-  numchunks_compressed   INTEGER := 0;
-  _message     text;
-  _detail      text;
-  _sqlstate    text;
-  -- fully compressed chunk status
-  status_fully_compressed int := 1;
-  -- chunk status bits:
-  bit_compressed int := 1;
-  bit_compressed_unordered int := 2;
-  bit_frozen int := 4;
-  bit_compressed_partial int := 8;
-  creation_lag INTERVAL := NULL;
-  chunks_failure INTEGER := 0;
+    htoid                    regclass;
+    chunk_rec                record;
+    idx_rec                  record;
+    numchunks_compressed     integer  := 0;
+    _message                 text;
+    _detail                  text;
+    _sqlstate                text;
+    -- fully compressed chunk status
+    status_fully_compressed  int      := 1;
+    -- chunk status bits:
+    bit_compressed           int      := 1;
+    bit_compressed_unordered int      := 2;
+    bit_frozen               int      := 4;
+    bit_compressed_partial   int      := 8;
+    creation_lag             interval := NULL;
+    chunks_failure           integer  := 0;
 BEGIN
 
-  -- procedures with SET clause cannot execute transaction
-  -- control so we adjust search_path in procedure body
-  SET LOCAL search_path TO pg_catalog, pg_temp;
+    -- procedures with SET clause cannot execute transaction
+    -- control so we adjust search_path in procedure body
+    SET LOCAL search_path TO pg_catalog, pg_temp;
 
-  SELECT format('%I.%I', schema_name, table_name) INTO htoid
-  FROM _timescaledb_catalog.hypertable
-  WHERE id = htid;
-
-  -- for the integer cases, we have to compute the lag w.r.t
-  -- the integer_now function and then pass on to show_chunks
-  IF pg_typeof(lag) IN ('BIGINT'::regtype, 'INTEGER'::regtype, 'SMALLINT'::regtype) THEN
-    -- cannot have use_creation_time set with this
-    IF use_creation_time IS TRUE THEN
-        RAISE EXCEPTION 'job % cannot use creation time with integer_now function', job_id;
-    END IF;
-    lag := _timescaledb_functions.subtract_integer_from_now(htoid, lag::BIGINT);
-  END IF;
-
-  -- if use_creation_time has been specified then the lag needs to be used with the
-  -- "compress_created_before" argument. Otherwise the usual "older_than" argument
-  -- is good enough
-  IF use_creation_time IS TRUE THEN
-    creation_lag := lag;
-    lag := NULL;
-  END IF;
-
-  FOR chunk_rec IN
     SELECT
-      show.oid, ch.schema_name, ch.table_name, ch.status
-    FROM
-      @extschema@.show_chunks(htoid, older_than => lag, created_before => creation_lag) AS show(oid)
-      INNER JOIN pg_class pgc ON pgc.oid = show.oid
-      INNER JOIN pg_namespace pgns ON pgc.relnamespace = pgns.oid
-      INNER JOIN _timescaledb_catalog.chunk ch ON ch.table_name = pgc.relname AND ch.schema_name = pgns.nspname AND ch.hypertable_id = htid
-    WHERE NOT ch.dropped
-    AND NOT ch.osm_chunk
-    -- Checking for chunks which are not fully compressed and not frozen
-    AND ch.status != status_fully_compressed
-    AND ch.status & bit_frozen = 0
-  LOOP
-    BEGIN
-      IF chunk_rec.status = bit_compressed OR recompress_enabled IS TRUE THEN
-        PERFORM @extschema@.compress_chunk(chunk_rec.oid, hypercore_use_access_method => useam);
-        numchunks_compressed := numchunks_compressed + 1;
-      END IF;
-    EXCEPTION WHEN OTHERS THEN
-      GET STACKED DIAGNOSTICS
-          _message = MESSAGE_TEXT,
-          _detail = PG_EXCEPTION_DETAIL,
-          _sqlstate = RETURNED_SQLSTATE;
-      RAISE WARNING 'converting chunk "%" to columnstore failed when recompress columnstore policy is executed', chunk_rec.oid::regclass::text
-          USING DETAIL = format('Message: (%s), Detail: (%s).', _message, _detail),
-                ERRCODE = _sqlstate;
-      chunks_failure := chunks_failure + 1;
-    END;
-    COMMIT;
+        FORMAT('%I.%I', schema_name, table_name)
+    INTO htoid
+    FROM _timescaledb_catalog.hypertable
+    WHERE id = htid;
 
-    -- went through recompression successfully now reindex indexes
-    IF (chunk_rec.status & bit_compressed_partial = bit_compressed_partial) AND (reindex_enabled IS TRUE) THEN
-      FOR idx_rec IN
-        SELECT idx.schemaname, idx.indexname
-        FROM pg_indexes idx
-        JOIN _timescaledb_catalog.chunk ch ON ch.schema_name = idx.schemaname AND ch.table_name = idx.tablename
-        WHERE idx.schemaname = chunk_rec.schema_name
-          AND idx.tablename = chunk_rec.table_name
-          AND ch.status = status_fully_compressed
-      LOOP
+    -- for the integer cases, we have to compute the lag w.r.t
+    -- the integer_now function and then pass on to show_chunks
+    IF PG_TYPEOF(lag) IN ('BIGINT'::regtype, 'INTEGER'::regtype, 'SMALLINT'::regtype)
+    THEN
+        -- cannot have use_creation_time set with this
+        IF use_creation_time IS TRUE
+        THEN
+            RAISE EXCEPTION 'job % cannot use creation time with integer_now function', job_id;
+        END IF;
+        lag := _timescaledb_functions.subtract_integer_from_now(htoid, lag::bigint);
+    END IF;
+
+    -- if use_creation_time has been specified then the lag needs to be used with the
+    -- "compress_created_before" argument. Otherwise the usual "older_than" argument
+    -- is good enough
+    IF use_creation_time IS TRUE
+    THEN
+        creation_lag := lag;
+        lag := NULL;
+    END IF;
+
+    FOR chunk_rec IN SELECT
+                         SHOW.OID,
+                         ch.schema_name,
+                         ch.table_name,
+                         ch.status
+                     FROM @extschema@.show_chunks(htoid, older_than => lag, created_before => creation_lag) AS SHOW(OID)
+                          INNER JOIN pg_class pgc
+                                     ON pgc.oid = SHOW.OID
+                          INNER JOIN pg_namespace pgns
+                                     ON pgc.relnamespace = pgns.oid
+                          INNER JOIN _timescaledb_catalog.chunk ch
+                                     ON ch.table_name = pgc.relname
+                                    AND ch.schema_name = pgns.nspname
+                                    AND ch.hypertable_id = htid
+                     WHERE NOT ch.dropped
+                       AND NOT ch.osm_chunk
+                       -- Checking for chunks which are not fully compressed and not frozen
+                       AND ch.status != status_fully_compressed
+                       AND ch.status & bit_frozen = 0
+    LOOP
         BEGIN
-          EXECUTE format('REINDEX INDEX %I.%I;', idx_rec.schemaname, idx_rec.indexname);
-        EXCEPTION WHEN OTHERS THEN
-          GET STACKED DIAGNOSTICS
-              _message = MESSAGE_TEXT,
-              _detail = PG_EXCEPTION_DETAIL,
-              _sqlstate = RETURNED_SQLSTATE;
-          RAISE WARNING 'reindexing index "%.%" for chunk "%" to columnstore failed when columnstore policy is executed', idx_rec.schemaname, idx_rec.indexname, chunk_rec.oid::regclass::text
-              USING DETAIL = format('Message: (%s), Detail: (%s).', _message, _detail),
-                    ERRCODE = _sqlstate;
-          chunks_failure := chunks_failure + 1;
+            IF chunk_rec.status = bit_compressed OR recompress_enabled IS TRUE
+            THEN
+                PERFORM @extschema@.compress_chunk(chunk_rec.OID, hypercore_use_access_method => useam);
+                numchunks_compressed := numchunks_compressed + 1;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                GET STACKED DIAGNOSTICS
+                    _message = MESSAGE_TEXT,
+                    _detail = PG_EXCEPTION_DETAIL,
+                    _sqlstate = RETURNED_SQLSTATE;
+
+            -- Check if chunk was actually compressed despite the error
+            DECLARE
+                chunk_is_compressed boolean := FALSE;
+            BEGIN
+                SELECT
+                    (ch.status = status_fully_compressed OR ch.status & bit_compressed > 0)
+                INTO chunk_is_compressed
+                FROM _timescaledb_catalog.chunk ch
+                WHERE ch.table_name = (
+                                          SELECT
+                                              relname
+                                          FROM pg_class
+                                          WHERE oid = chunk_rec.OID
+                                      )
+                  AND ch.schema_name = (
+                                           SELECT
+                                               nspname
+                                           FROM pg_namespace
+                                           WHERE oid = (
+                                                           SELECT
+                                                               relnamespace
+                                                           FROM pg_class
+                                                           WHERE oid = chunk_rec.OID
+                                                       )
+                                       );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    chunk_is_compressed := FALSE;
+            END;
+
+            IF chunk_is_compressed
+            THEN
+                RAISE WARNING 'Chunk % had error during compression but was successfully compressed anyway. Error: %'
+                    , chunk_rec.OID::regclass::text
+                    , _message;
+
+                numchunks_compressed := numchunks_compressed + 1;
+            ELSE
+                RAISE WARNING 'converting chunk "%" to columnstore failed when recompress columnstore policy is executed'
+                    , chunk_rec.OID::regclass::text
+                    USING DETAIL = FORMAT('Message: (%s), Detail: (%s).', _message, _detail),
+                        ERRCODE = _sqlstate;
+
+                chunks_failure := chunks_failure + 1;
+            END IF;
         END;
         COMMIT;
-      END LOOP;
-    END IF;
 
-    -- SET LOCAL is only active until end of transaction.
-    -- While we could use SET at the start of the function we do not
-    -- want to bleed out search_path to caller, so we do SET LOCAL
-    -- again after COMMIT
-    SET LOCAL search_path TO pg_catalog, pg_temp;
-    IF verbose_log THEN
-       RAISE LOG 'job % completed processing chunk %.%', job_id, chunk_rec.schema_name, chunk_rec.table_name;
-    END IF;
-    IF maxchunks > 0 AND numchunks_compressed >= maxchunks THEN
-         EXIT;
-    END IF;
-  END LOOP;
+        -- went through recompression successfully now reindex indexes
+        IF (chunk_rec.status & bit_compressed_partial = bit_compressed_partial) AND (reindex_enabled IS TRUE)
+        THEN
+            FOR idx_rec IN SELECT
+                               idx.schemaname,
+                               idx.indexname
+                           FROM pg_indexes idx
+                                JOIN _timescaledb_catalog.chunk ch
+                                     ON ch.schema_name = idx.schemaname
+                                    AND ch.table_name = idx.tablename
+                           WHERE idx.schemaname = chunk_rec.schema_name
+                             AND idx.tablename = chunk_rec.table_name
+                             AND ch.status = status_fully_compressed
+            LOOP
+                BEGIN
+                    EXECUTE FORMAT('REINDEX INDEX %I.%I;', idx_rec.schemaname, idx_rec.indexname);
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        GET STACKED DIAGNOSTICS
+                            _message = MESSAGE_TEXT,
+                            _detail = PG_EXCEPTION_DETAIL,
+                            _sqlstate = RETURNED_SQLSTATE;
 
-  IF chunks_failure > 0 THEN
-    RAISE EXCEPTION 'columnstore policy failure'
-      USING
-        DETAIL = format('Failed to convert %L chunks to columnstore. Successfully converted %L chunks.', chunks_failure, numchunks_compressed),
-        ERRCODE = 'data_exception';
-  END IF;
+                    RAISE WARNING 'reindexing index "%.%" for chunk "%" to columnstore failed when columnstore policy is executed'
+                        , idx_rec.schemaname
+                        , idx_rec.indexname
+                        , chunk_rec.OID::regclass::text
+                        USING DETAIL = FORMAT('Message: (%s), Detail: (%s).', _message, _detail),
+                            ERRCODE = _sqlstate;
+
+                    chunks_failure := chunks_failure + 1;
+                END;
+                COMMIT;
+            END LOOP;
+        END IF;
+
+        -- SET LOCAL is only active until end of transaction.
+        -- While we could use SET at the start of the function we do not
+        -- want to bleed out search_path to caller, so we do SET LOCAL
+        -- again after COMMIT
+        SET LOCAL search_path TO pg_catalog, pg_temp;
+
+        IF verbose_log
+        THEN
+            RAISE LOG 'job % completed processing chunk %.%', job_id, chunk_rec.schema_name, chunk_rec.table_name;
+        END IF;
+
+        IF maxchunks > 0 AND numchunks_compressed >= maxchunks
+        THEN
+            EXIT;
+        END IF;
+    END LOOP;
+
+    IF chunks_failure > 0
+    THEN
+        RAISE EXCEPTION 'columnstore policy failure'
+            USING DETAIL = FORMAT('Failed to convert %L chunks to columnstore. Successfully converted %L chunks.', chunks_failure, numchunks_compressed),
+                ERRCODE = 'data_exception';
+    END IF;
 END;
-$$ LANGUAGE PLPGSQL;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE PROCEDURE
 _timescaledb_functions.policy_compression(job_id INTEGER, config JSONB)

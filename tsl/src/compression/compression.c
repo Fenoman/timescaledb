@@ -4,8 +4,10 @@
  * LICENSE-TIMESCALE for a copy of the license.
  */
 #include <postgres.h>
+#include "executor/tuptable.h"
 #include <access/attmap.h>
 #include <access/attnum.h>
+#include <access/heapam.h>
 #include <access/skey.h>
 #include <access/tupdesc.h>
 #include <catalog/heap.h>
@@ -286,6 +288,7 @@ compress_chunk(Oid in_table, Oid out_table, int insert_options)
 	 * we are compressing, so we only take an ExclusiveLock instead of AccessExclusive.
 	 */
 	Relation in_rel = table_open(in_table, ExclusiveLock);
+	
 	/* We are _just_ INSERTing into the out_table so in principle we could take
 	 * a RowExclusive lock, and let other operations read and write this table
 	 * as we work. However, we currently compress each table as a oneshot, so
@@ -1566,8 +1569,13 @@ build_decompressor(const TupleDesc in_desc, const TupleDesc out_desc)
 		.per_compressed_row_ctx = AllocSetContextCreate(CurrentMemoryContext,
 														"decompress chunk per-compressed row",
 														ALLOCSET_DEFAULT_SIZES),
+
+        .slot_mcxt = AllocSetContextCreate(CurrentMemoryContext,
+                                           "RowDecompressorSlots",
+                                           ALLOCSET_DEFAULT_SIZES),
 		.decompressed_slots =
 			(TupleTableSlot **) palloc0(sizeof(void *) * TARGET_COMPRESSED_BATCH_SIZE),
+		.max_slots = TARGET_COMPRESSED_BATCH_SIZE,
 		.attrmap = attrmap,
 	};
 
@@ -1598,6 +1606,29 @@ row_decompressor_reset(RowDecompressor *decompressor)
 void
 row_decompressor_close(RowDecompressor *decompressor)
 {
+	/* Drop tuple slots before deleting their memory context.
+	 * Check that memory context still exists to avoid double-free issues. */
+	if (decompressor->decompressed_slots && decompressor->slot_mcxt)
+	{
+		for (int i = 0; i < decompressor->max_slots; i++)
+	    {
+	        if (decompressor->decompressed_slots[i] != NULL)
+	        {
+	            ExecDropSingleTupleTableSlot(decompressor->decompressed_slots[i]);
+	            decompressor->decompressed_slots[i] = NULL;
+	        }
+	    }
+	    pfree(decompressor->decompressed_slots);
+	    decompressor->decompressed_slots = NULL;
+	}
+
+	if (decompressor->slot_mcxt)
+	{
+	    MemoryContextDelete(decompressor->slot_mcxt);
+	    decompressor->slot_mcxt = NULL;
+	}
+
+	/* Now release per-row memory and other resources */
 	MemoryContextDelete(decompressor->per_compressed_row_ctx);
 	detoaster_close(&decompressor->detoaster);
 	free_attrmap(decompressor->attrmap);
@@ -1607,7 +1638,6 @@ row_decompressor_close(RowDecompressor *decompressor)
 	pfree(decompressor->compressed_is_nulls);
 	pfree(decompressor->decompressed_datums);
 	pfree(decompressor->decompressed_is_nulls);
-	pfree(decompressor->decompressed_slots);
 	pfree(decompressor->per_compressed_cols);
 }
 
@@ -1836,12 +1866,34 @@ decompress_batch(RowDecompressor *decompressor)
 	init_batch(decompressor, NULL, 0);
 
 	/*
-	 * Set the number of batch rows from count metadata column.
+	 * Set the number of batch rows from count metadata column and
+	 * dynamically expand the slots array if needed for larger batches.
 	 */
 	const int n_batch_rows =
 		DatumGetInt32(decompressor->compressed_datums[decompressor->count_compressed_attindex]);
 	CheckCompressedData(n_batch_rows > 0);
 	CheckCompressedData(n_batch_rows <= GLOBAL_MAX_ROWS_PER_COMPRESSION);
+
+    /* Dynamically expand slots array if current batch exceeds allocated size */
+    if (n_batch_rows > decompressor->max_slots)
+    {
+        /*
+         * Grow just to the needed size. We already ensured n_batch_rows <=
+         * GLOBAL_MAX_ROWS_PER_COMPRESSION above, so no extra capping is
+         * necessary here. Avoid over-allocation to keep memory bounded for
+         * very large but valid batches.
+         */
+        int new_size = n_batch_rows;
+        int old_max = decompressor->max_slots;
+        decompressor->max_slots = new_size;
+
+        /* repalloc() will throw ereport(ERROR) on failure, never returns NULL */
+        decompressor->decompressed_slots = repalloc(decompressor->decompressed_slots,
+                                                    sizeof(void *) * new_size);
+        /* Initialize new elements to NULL */
+        memset(&decompressor->decompressed_slots[old_max], 0,
+               sizeof(void *) * (new_size - old_max));
+    }
 
 	/*
 	 * Decompress all compressed columns for each row of the batch.
@@ -1865,28 +1917,118 @@ decompress_batch(RowDecompressor *decompressor)
 		}
 
 		/*
-		 * Form the heap tuple for this decompressed rows and save it for later
-		 * processing.
+		 * Form the tuple for this decompressed row and save it for later processing.
+		 *
+		 * When ts_guc_enable_virtual_slots_decompression is enabled (default), we use
+		 * virtual tuples to avoid 'row is too big' errors for large values. Virtual
+		 * slots delegate materialization and TOASTing to the heap AM during insertion.
+		 * This approach is based on PostgreSQL's tuple slot abstraction layer which
+		 * allows different storage representations. See PostgreSQL documentation on
+		 * TupleTableSlot and executor/tuptable.h for details.
+		 *
+		 * When disabled, we fall back to traditional heap tuples, which may fail
+		 * with oversized data but preserves backward compatibility.
 		 */
 		if (decompressor->decompressed_slots[current_row] == NULL)
 		{
 			MemoryContextSwitchTo(old_ctx);
-			decompressor->decompressed_slots[current_row] =
-				MakeSingleTupleTableSlot(decompressor->out_desc, &TTSOpsHeapTuple);
+			if (ts_guc_enable_virtual_slots_decompression)
+			{
+				/* Use virtual tuple slots to let heap AM handle TOAST */
+				MemoryContextSwitchTo(decompressor->slot_mcxt);
+				decompressor->decompressed_slots[current_row] =
+					MakeSingleTupleTableSlot(decompressor->out_desc, &TTSOpsVirtual);
+			}
+			else
+			{
+				/* Traditional heap tuple slots for backward compatibility */
+				MemoryContextSwitchTo(decompressor->slot_mcxt);
+				decompressor->decompressed_slots[current_row] =
+					MakeSingleTupleTableSlot(decompressor->out_desc, &TTSOpsHeapTuple);
+			}
 			MemoryContextSwitchTo(decompressor->per_compressed_row_ctx);
+        }
+		else
+		{
+			/* Check slot compatibility with current GUC; recreate if mismatched */
+            {
+                TupleTableSlot *slot = decompressor->decompressed_slots[current_row];
+                bool need_virtual = ts_guc_enable_virtual_slots_decompression;
+                bool is_virtual = (slot->tts_ops == &TTSOpsVirtual);
+                bool is_heap = (slot->tts_ops == &TTSOpsHeapTuple);
+
+                if ((need_virtual && !is_virtual) || (!need_virtual && !is_heap))
+                {
+                    /* Clear slot before dropping to ensure no hanging pointers */
+                    ExecClearTuple(slot);
+                    ExecDropSingleTupleTableSlot(slot);
+                    MemoryContextSwitchTo(decompressor->slot_mcxt);
+                    decompressor->decompressed_slots[current_row] =
+                        MakeSingleTupleTableSlot(decompressor->out_desc,
+                                                 need_virtual ? &TTSOpsVirtual : &TTSOpsHeapTuple);
+                    MemoryContextSwitchTo(decompressor->per_compressed_row_ctx);
+                }
+                else
+                {
+                    ExecClearTuple(slot);
+                }
+            }
+        }
+		TupleTableSlot *decompressed_slot = decompressor->decompressed_slots[current_row];
+
+        /* Optional debug logging for large decompressed values */
+        if (ts_guc_debug_compression_path_info)
+        {
+            Size estimated_size = 0;
+            for (int i = 0; i < decompressor->out_desc->natts; i++)
+            {
+                if (!decompressor->decompressed_is_nulls[i])
+                {
+                    Form_pg_attribute attr = TupleDescAttr(decompressor->out_desc, i);
+                    if (attr->attlen == -1) /* varlena */
+                    {
+                        Datum val = decompressor->decompressed_datums[i];
+                        if (DatumGetPointer(val))
+                            /* Approximate size using varlena length. Do not
+                             * add any undefined TOAST overhead here. */
+                            estimated_size += VARSIZE_ANY(val);
+                    }
+                }
+            }
+			if (estimated_size >= MaxHeapTupleSize)
+			{
+				elog(DEBUG1,
+					 "Decompressing large row %d, estimated size: %zu bytes (max: %zu), "
+					 "using %s slots",
+					 current_row,
+					 estimated_size,
+					 MaxHeapTupleSize,
+					 ts_guc_enable_virtual_slots_decompression ? "virtual" : "heap");
+			}
+		}
+
+		if (ts_guc_enable_virtual_slots_decompression)
+		{
+			/*
+			 * Store the decompressed data as a virtual tuple. This avoids
+			 * materializing heap tuples here which could trigger "row is too big"
+			 * errors for oversized data. The heap AM will properly handle
+			 * TOASTing when the tuple is actually inserted into the table.
+			 */
+			memcpy(decompressed_slot->tts_values, decompressor->decompressed_datums,
+				   decompressor->out_desc->natts * sizeof(Datum));
+			memcpy(decompressed_slot->tts_isnull, decompressor->decompressed_is_nulls,
+				   decompressor->out_desc->natts * sizeof(bool));
+			ExecStoreVirtualTuple(decompressed_slot);
 		}
 		else
 		{
-			ExecClearTuple(decompressor->decompressed_slots[current_row]);
+			/* Traditional heap tuple formation - may fail with oversized data */
+			HeapTuple decompressed_tuple = heap_form_tuple(decompressor->out_desc,
+														   decompressor->decompressed_datums,
+														   decompressor->decompressed_is_nulls);
+			ExecStoreHeapTuple(decompressed_tuple, decompressed_slot, /* should_free = */ false);
 		}
-
-		TupleTableSlot *decompressed_slot = decompressor->decompressed_slots[current_row];
-
-		HeapTuple decompressed_tuple = heap_form_tuple(decompressor->out_desc,
-													   decompressor->decompressed_datums,
-													   decompressor->decompressed_is_nulls);
-
-		ExecStoreHeapTuple(decompressed_tuple, decompressed_slot, /* should_free = */ false);
 	}
 
 	/*
@@ -2042,12 +2184,12 @@ row_decompressor_decompress_row_to_table(RowDecompressor *decompressor, BulkWrit
 	MemoryContext old_ctx = MemoryContextSwitchTo(decompressor->per_compressed_row_ctx);
 
 	/* Insert all decompressed rows into table using the bulk insert API. */
-	table_multi_insert(writer->out_rel,
-					   decompressor->decompressed_slots,
-					   n_batch_rows,
-					   writer->mycid,
-					   /* options = */ 0,
-					   writer->bistate);
+		table_multi_insert(writer->out_rel,
+						   decompressor->decompressed_slots,
+						   n_batch_rows,
+						   writer->mycid,
+						   /* options = */ 0,
+						   writer->bistate);
 
 	/*
 	 * Now, update the indexes. If we have several indexes, we want to first
