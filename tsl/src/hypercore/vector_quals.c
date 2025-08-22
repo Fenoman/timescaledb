@@ -141,9 +141,10 @@ ExecVectorQual(VectorQualState *vqstate, ExprContext *econtext)
 	}
 	else
 	{
-		for (uint16 i = off; i > 0; i--)
+		/* Use signed integer to properly handle iteration down to 0 */
+		for (int32 i = (int32) off; i >= 0; i--)
 		{
-			if (arrow_row_is_valid(qual_result, i))
+			if (arrow_row_is_valid(qual_result, (uint16) i))
 				break;
 			nfiltered++;
 		}
