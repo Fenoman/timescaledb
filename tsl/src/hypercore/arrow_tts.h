@@ -145,6 +145,14 @@ hypercore_tid_encode(ItemPointerData *out_tid, const ItemPointerData *in_tid, ui
 {
 	const BlockNumber block = ItemPointerGetBlockNumber(in_tid);
 	const OffsetNumber offset = ItemPointerGetOffsetNumber(in_tid);
+	
+	/* Runtime validation to prevent encoding errors */
+	if (offset >= OFFSET_LIMIT)
+		elog(ERROR, "offset %u exceeds encoding limit of %lu", offset, OFFSET_LIMIT - 1);
+	
+	if (tuple_index == InvalidTupleIndex || tuple_index >= 1024)
+		elog(ERROR, "invalid tuple index %u for encoding", tuple_index);
+	
 	const uint64 encoded_tid = ((uint64) block << OFFSET_BITS) | (uint16) offset;
 
 	Assert(offset < OFFSET_LIMIT);
@@ -178,7 +186,10 @@ hypercore_tid_decode(ItemPointerData *out_tid, const ItemPointerData *in_tid)
 static inline void
 hypercore_tid_set_tuple_index(ItemPointerData *tid, uint32 tuple_index)
 {
-	/* Assert that we do not overflow the increment: we only have 10 bits for the tuple index */
+	/* Runtime check to prevent overflow: we only have 10 bits for the tuple index */
+	if (tuple_index >= 1024)
+		elog(ERROR, "tuple index %u exceeds maximum of 1023", tuple_index);
+	
 	Assert(tuple_index < 1024);
 	ItemPointerSetOffsetNumber(tid, tuple_index);
 }
@@ -186,8 +197,13 @@ hypercore_tid_set_tuple_index(ItemPointerData *tid, uint32 tuple_index)
 static inline void
 hypercore_tid_increment(ItemPointerData *tid, uint16 increment)
 {
-	/* Assert that we do not overflow the increment: we only have 10 bits for the tuple index */
-	hypercore_tid_set_tuple_index(tid, ItemPointerGetOffsetNumber(tid) + increment);
+	uint32 new_index = ItemPointerGetOffsetNumber(tid) + increment;
+	/* Runtime check for overflow: we only have 10 bits for the tuple index */
+	if (new_index >= 1024)
+		elog(ERROR, "tuple index overflow: current %u + increment %u exceeds maximum of 1023",
+			 ItemPointerGetOffsetNumber(tid), increment);
+	
+	hypercore_tid_set_tuple_index(tid, new_index);
 }
 
 static inline bool

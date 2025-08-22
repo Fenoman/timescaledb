@@ -297,6 +297,7 @@ tts_arrow_store_tuple(TupleTableSlot *slot, TupleTableSlot *child_slot, uint16 t
 	else
 	{
 		bool isnull;
+		Datum d;
 
 		/* The slot could already hold the decompressed data for the index we
 		 * are storing, so only clear the decompressed data if this is truly a
@@ -321,21 +322,57 @@ tts_arrow_store_tuple(TupleTableSlot *slot, TupleTableSlot *child_slot, uint16 t
 			}
 		}
 
+		/* Get total row count BEFORE encoding so we can validate and map MaxTupleIndex */
+		Ensure(aslot->count_attnum != InvalidAttrNumber,
+			   "missing count metadata in compressed relation");
+		d = slot_getattr(child_slot, aslot->count_attnum, &isnull);
+
+		if (isnull)
+			ereport(ERROR,
+					(errcode(ERRCODE_DATA_CORRUPTED),
+					 errmsg("compressed tuple missing count metadata")));
+
+		/* Read count as int32 first to validate BEFORE narrowing to uint16 */
+		int32 count = DatumGetInt32(d);
+		
+		/* Validate count is positive and within encoding limits */
+		if (count < 1)
+			ereport(ERROR,
+					(errcode(ERRCODE_DATA_CORRUPTED),
+					 errmsg("compressed batch has non-positive row count: %d", count)));
+		
+		if (count >= 1024)
+		     ereport(ERROR,
+		             (errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+		              errmsg("compressed batch has %d rows, exceeds 10-bit TID encoding limit (1023)",
+		                     count)));
+		
+		/* Now safe to narrow to uint16 */
+		aslot->total_row_count = (uint16) count;
+
+		/* Map MaxTupleIndex to actual last row index and validate bounds */
+		if (tuple_index == MaxTupleIndex)
+			tuple_index = aslot->total_row_count;
+		
+		/* Validate tuple index is within valid range [1..total_row_count] */
+		if (tuple_index < MinTupleIndex || tuple_index > aslot->total_row_count)
+			ereport(ERROR,
+					(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
+					 errmsg("tuple index %u out of bounds [1..%u]",
+							tuple_index, aslot->total_row_count)));
+		
+		/* Ensure tuple index fits in 10-bit encoding (max value 1023) */
+		if (tuple_index >= 1024)
+			ereport(ERROR,
+					(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+					 errmsg("tuple index %u exceeds encoding limit 1023", tuple_index)));
+
+		/* Now safe to encode with validated tuple_index */
 		hypercore_tid_encode(&slot->tts_tid, &child_slot->tts_tid, tuple_index);
 
 		/* Stored a compressed tuple so clear the non-compressed slot */
 		ExecClearTuple(aslot->noncompressed_slot);
-
-		/* Set total row count */
-		Datum d = slot_getattr(child_slot, aslot->count_attnum, &isnull);
-		Assert(!isnull);
-		aslot->total_row_count = DatumGetInt32(d);
 	}
-
-	/* MaxTupleIndex typically used for backwards scans, so store the index
-	 * pointing to the last value */
-	if (tuple_index == MaxTupleIndex)
-		tuple_index = aslot->total_row_count;
 
 	slot->tts_flags &= ~TTS_FLAG_EMPTY;
 	slot->tts_nvalid = 0;
@@ -537,6 +574,11 @@ static inline bool
 is_used_attr(const TupleTableSlot *slot, const int16 attoff)
 {
 	const ArrowTupleTableSlot *aslot = (const ArrowTupleTableSlot *) slot;
+	
+	/* Validate attribute offset bounds */
+	if (attoff < 0 || attoff >= slot->tts_tupleDescriptor->natts)
+		return false; /* Invalid attributes are not used */
+	
 	return aslot->referenced_attrs == NULL || aslot->referenced_attrs[attoff];
 }
 
@@ -804,12 +846,42 @@ arrow_slot_get_array(TupleTableSlot *slot, AttrNumber attno)
 	if (attno > slot->tts_tupleDescriptor->natts)
 		elog(ERROR, "invalid attribute number");
 
-	/* Regular (non-compressed) tuple has no arrow array */
+	/* Regular (non-compressed) tuple has no Arrow array. We still need to
+	 * materialize the requested attributes in a child slot and copy them into
+	 * the parent slot so that vector-qual and other callers can read tts_values[]. */
 	if (aslot->tuple_index == InvalidTupleIndex)
 	{
-		slot_getsomeattrs(slot, attno);
-		copy_slot_values(aslot->child_slot, slot, attno);
-		return NULL;
+	    /* Prefer the current active child; fall back to the non-compressed slot.
+	     * In normal flow child_slot is always initialized in tts_arrow_init() and
+	     * points to noncompressed_slot for regular tuples. */
+	    TupleTableSlot *active =
+	        aslot->child_slot ? aslot->child_slot : aslot->noncompressed_slot;
+
+	    if (unlikely(active == NULL))
+	        ereport(ERROR,
+	                (errcode(ERRCODE_DATA_CORRUPTED),
+	                 errmsg("arrow slot has no child slot for non-compressed tuple")));
+
+	#ifdef USE_ASSERT_CHECKING
+	    /* For regular tuples we expect the active child to be the non-compressed slot. */
+	    Assert(active == aslot->noncompressed_slot);
+	#endif
+
+	    /* If both children are empty but the parent already contains datums
+	     * (e.g., the slot is used like a VirtualTTS), push the parent's values
+	     * down into the non-compressed child before copying back up. */
+	    if (TTS_EMPTY(active) &&
+	        (aslot->compressed_slot == NULL || TTS_EMPTY(aslot->compressed_slot)) &&
+	        slot->tts_nvalid > 0)
+	    {
+	        tts_arrow_materialize(slot); /* will populate noncompressed_slot */
+	        active = aslot->noncompressed_slot;
+	    }
+
+	    /* Populate up to 'attno' in the child and then mirror them to the parent. */
+	    slot_getsomeattrs(active, attno);
+	    copy_slot_values(active, slot, attno);
+	    return NULL;
 	}
 
 	if (!is_used_attr(slot, attoff))
