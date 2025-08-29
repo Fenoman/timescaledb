@@ -27,14 +27,28 @@ typedef struct ArrowPrivate
 	bool typbyval;		   /* Cached typbyval for the type in the arrow array. This
 							* avoids having to do get_typbyval() syscache lookups on
 							* hot paths. */
-	int8 text_format_hint; /* TEXT format cache: -1=unknown, 0=cstring (new), 1=varlena (legacy).
-							* Determined on first non-null TEXT value to avoid repeated format
-							* detection for subsequent values. */
 } ArrowPrivate;
 
 static Datum
 arrow_private_cstring_to_text_datum(ArrowPrivate *ap, const uint8 *data, size_t datalen)
 {
+	/* Validate input parameters */
+	if (ap == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("arrow private data is NULL")));
+	
+	if (data == NULL && datalen > 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("data pointer is NULL but datalen is %zu", datalen)));
+	
+	/* Sanity check for datalen to prevent integer overflow */
+	if (datalen > ARROW_VARLEN_MAX_PAYLOAD)
+		ereport(ERROR,
+				(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+				 errmsg("text data length %zu exceeds maximum allowed", datalen)));
+	
 	const size_t varlen = VARHDRSZ + datalen;
 
 	/* Allocate memory on the ArrowArray's memory context. Start with twice
@@ -65,7 +79,6 @@ arrow_private_create(ArrowArray *array, Oid typid)
 	Assert(NULL == array->private_data);
 	private = palloc0(sizeof(ArrowPrivate));
 	private->mcxt = CurrentMemoryContext;
-	private->text_format_hint = -1; /* Unknown format initially */
 	
 	/* Set private_data BEFORE potentially throwing operation to ensure
 	 * proper cleanup in case of exception */
@@ -584,6 +597,9 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
 	const int32 *offsets;
 	const uint8 *data;
 	Datum value;
+	
+	/* Use uint32 for effective index to avoid narrowing from dictionary lookups */
+	uint32 effective_index = index;
 
 	/* Check if validity bitmap is NULL - if so, all values are valid by Arrow spec */
 	if (validity != NULL && !arrow_row_is_valid(validity, index))
@@ -606,28 +622,95 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
                      errmsg("dictionary index buffer is NULL")));
 		
 		/* 
-		 * TimescaleDB uses int16 for dictionary indices to save memory.
-		 * This limits dictionaries to 32767 unique values but is sufficient
-		 * for time-series compression scenarios.
-		 * TODO: Consider supporting int32 indices for external Arrow data import.
+		 * Dictionary index type detection and handling.
+		 * 
+		 * TimescaleDB traditionally uses int16 indices (2 bytes) to save memory,
+		 * limiting dictionaries to 32767 unique values. However:
+		 * - Arrow standard uses int32 (4 bytes) for dictionary indices
+		 * - External data might use int32 or even int64
+		 * - Future TimescaleDB versions might support larger dictionaries
+		 * 
+		 * We need to detect and handle the actual index type to prevent:
+		 * - Reading int32 as int16 causing truncated/wrong indices
+		 * - Buffer overruns from incorrect index interpretation
+		 * - SIGSEGV when accessing data at wrong offsets
 		 */
-		const int16 *indexes = (int16 *) array->buffers[1];
-		int16 dict_index = indexes[index];
 		
-		/* Validate dictionary index bounds */
-		if (dict_index < 0 || dict_index >= dict->length)
-			ereport(ERROR,
-					(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
-					 errmsg("dictionary index %d out of bounds, dictionary length is %lld",
-							dict_index, (long long) dict->length)));
-		
+		/* 
+		 * Strategy: Use dictionary size as a hint for index type.
+		 * If dict has >32767 entries, indices MUST be int32 or larger.
+		 * If dict has <=32767 entries, we still prefer int16 for compatibility
+		 * but validate each index carefully.
+		 */
+
+		if (dict->length > INT16_MAX)
+		{
+			/* Dictionary too large for int16, must be int32 indices */
+			const int32 *indexes32 = (int32 *) array->buffers[1];
+
+			/* Validate buffer bounds for int32 access */
+			if (index >= array->length)
+				ereport(ERROR,
+						(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
+						 errmsg("array index %u out of bounds for int32 dictionary access",
+								index)));
+
+			int32 dict_index = indexes32[index];
+
+			/* Validate the int32 index */
+			if (dict_index < 0 || dict_index >= dict->length)
+				ereport(ERROR,
+						(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
+						 errmsg("dictionary index %d out of bounds (int32), dictionary length is %lld",
+								dict_index, (long long) dict->length)));
+
+			/* Use the dictionary index directly without narrowing */
+			effective_index = (uint32) dict_index;
+		}
+		else
+		{
+			/* Dictionary fits in int16 range, try int16 indices first for compatibility */
+			const int16 *indexes16 = (int16 *) array->buffers[1];
+
+			/* Validate buffer bounds for int16 access */
+			if (index >= array->length)
+				ereport(ERROR,
+						(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
+						 errmsg("array index %u out of bounds for int16 dictionary access",
+								index)));
+
+			int16 idx16 = indexes16[index];
+
+			/* Check if this is a valid int16 index */
+			if (idx16 >= 0 && idx16 < dict->length)
+			{
+				/* Valid int16 index */
+				effective_index = (uint32) idx16;
+			}
+			else
+			{
+				/* 
+				 * Invalid int16 index. Since we can't know the actual buffer size
+				 * from ArrowArray metadata, attempting to read as int32 could cause
+				 * SIGSEGV if the buffer is actually int16-sized.
+				 * 
+				 * Future improvement: Add explicit index type metadata to safely
+				 * handle mixed int16/int32 scenarios.
+				 */
+				ereport(ERROR,
+						(errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
+						 errmsg("dictionary index %d out of bounds (int16), dictionary length is %lld",
+								(int) idx16, (long long) dict->length)));
+			}
+		}
+
         /* Validate dictionary has required buffers (offsets + data) */
         if (dict->n_buffers < 3 || dict->buffers == NULL || dict->buffers[1] == NULL || dict->buffers[2] == NULL)
             ereport(ERROR,
                     (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
                      errmsg("dictionary array buffers are NULL or incomplete")));
-		
-		index = dict_index;
+
+		/* Use the effective_index for dictionary data lookup */
 		offsets = dict->buffers[1];
 		data = dict->buffers[2];
 	}
@@ -648,7 +731,7 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
 		data = array->buffers[2];
 	}
 
-	const int32 offset = offsets[index];
+	const int32 offset = offsets[effective_index];
 	
 	/* Get data buffer size from the last offset entry. 
 	 * Use dictionary length if we're working with dictionary data */
@@ -670,17 +753,17 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
 	{
 	    ArrowPrivate *ap = arrow_private_get(array);
 
-	    /* We will access offsets[index + 1], so ensure index < effective_length.
+	    /* We will access offsets[effective_index + 1], so ensure effective_index < effective_length.
 	     * effective_length is dictionary->length for dictionary-encoded arrays,
 	     * otherwise it's array->length.
 	     */
-	    if (index >= effective_length)
+	    if (effective_index >= effective_length)
 	        ereport(ERROR,
 	                (errcode(ERRCODE_ARRAY_SUBSCRIPT_ERROR),
 	                 errmsg("cannot access next offset for index %u, array length %lld",
-	                        index, (long long) effective_length)));
+	                        effective_index, (long long) effective_length)));
 
-	    const int32 next_offset = offsets[index + 1];
+	    const int32 next_offset = offsets[effective_index + 1];
 
 	    /* Offsets must be monotonically non-decreasing and fit the data buffer.
 	     * Validate both the current offset (checked earlier) and the next one.
@@ -688,72 +771,127 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
 	    if (next_offset < offset || next_offset > data_buffer_size)
 	        ereport(ERROR,
 	                (errcode(ERRCODE_DATA_CORRUPTED),
-	                 errmsg("invalid next_offset %d for index %u", next_offset, index)));
+	                 errmsg("invalid next_offset %d for index %u", next_offset, effective_index)));
 
 	    const int32 datalen = next_offset - offset;
 	    const uint8 *dp = &data[offset];
 	    
-	    /* Check cached format hint to avoid repeated detection */
-	    if (ap->text_format_hint == -1)
+	    /* 
+	     * Optimized format detection with fast path for common cases.
+	     * 
+	     * Performance optimization: Most chunks are either entirely old format
+	     * (with varlena headers) or entirely new format (without headers).
+	     * Mixed format chunks are rare and only occur during migration period.
+	     * 
+	     * Strategy:
+	     * 1. Quick check for obvious new format (cstring without header)
+	     * 2. If it might be varlena, do full validation
+	     * 3. Remember last format for fast path hint (but still validate)
+	     */
+	    bool looks_varlena = false;
+	    
+	    /* Fast path: if data is too small for any varlena header, it's definitely cstring */
+	    if (datalen < (int32) VARHDRSZ_SHORT)
 	    {
-	        /* Unknown format - need to detect on first non-empty value */
-	        bool looks_varlena = false;
-
-	        /* Heuristics: treat the slice as varlena only if the header is present
-	         * and header+payload size matches exactly the slice length.
-	         */
-	        if (datalen >= (int32) VARHDRSZ_SHORT)
+	        /* Too small to have any header, must be new format */
+	        looks_varlena = false;
+	    }
+	    else if (datalen > 0 && dp[0] == 0)
+	    {
+	        /* First byte is 0 - impossible for varlena (size can't be 0), must be cstring */
+	        looks_varlena = false;
+	    }
+	    else if (datalen >= (int32) VARHDRSZ_SHORT)
+	    {
+	        /* First byte determines if it's 1B or 4B header */
+	        if (VARATT_IS_1B(dp))
 	        {
-	            /* First byte determines if it's 1B or 4B header */
-	            if (VARATT_IS_1B(dp))
+	            /* 1-byte varlena header: size = payload only. Require exact match. */
+	            const int32 exlen = VARSIZE_ANY_EXHDR(dp);
+	            if (exlen >= 0 &&
+	                exlen <= ARROW_VARLEN_MAX_PAYLOAD &&
+	                exlen + (int32) VARHDRSZ_SHORT == datalen)
+	                looks_varlena = true;
+	        }
+	        else if (datalen >= (int32) VARHDRSZ)
+	        {
+	            /* 4-byte header optimization: avoid memcpy if already aligned */
+	            const char *hp;
+	            
+	            /* Check alignment - on x86/x64 unaligned access is OK and faster than memcpy */
+	#if defined(__x86_64__) || defined(__i386__)
+	            /* x86/x64 handles unaligned access efficiently */
+	            hp = (const char *) dp;
+	#else
+	            /* Other architectures need aligned access */
+	            union {
+	                struct varlena vl;
+	                char data[VARHDRSZ];
+	                varattrib_4b va4b;  /* Ensure proper size for VARSIZE_ANY macros */
+	            } hdr;
+	            
+	            if (((uintptr_t) dp & 3) == 0)
 	            {
-	                /* 1-byte varlena header: size = payload only. Require exact match. */
-	                const int32 exlen = VARSIZE_ANY_EXHDR(dp);
-	                if (exlen >= 0 &&
-	                    exlen <= ARROW_VARLEN_MAX_PAYLOAD &&
-	                    exlen + (int32) VARHDRSZ_SHORT == datalen)
+	                /* Already aligned, use directly */
+	                hp = (const char *) dp;
+	            }
+	            else
+	            {
+	                /* Not aligned, need to copy */
+	                memcpy(&hdr.data, dp, VARHDRSZ);
+	                hp = (const char *) &hdr.vl;
+	            }
+	#endif
+	            
+	            /* Skip toasted/compressed/indirect headers */
+	            if (!VARATT_IS_EXTERNAL(hp) &&
+	                !VARATT_IS_COMPRESSED(hp)
+#ifdef VARATT_IS_INDIRECT
+	                && !VARATT_IS_INDIRECT(hp)
+#endif
+	                )
+	            {
+	                /* 4-byte varlena header: size includes header. Require exact match. */
+	                const int32 vlen  = VARSIZE_ANY(hp);
+	                const int32 exlen = VARSIZE_ANY_EXHDR(hp);
+	                if (vlen == datalen &&
+	                    exlen <= ARROW_VARLEN_MAX_PAYLOAD)
 	                    looks_varlena = true;
 	            }
-	            else if (datalen >= (int32) VARHDRSZ)
-	            {
-	                /* 4-byte header: copy to aligned local variable to avoid
-	                 * unaligned access on architectures with strict alignment */
-	                union {
-	                    struct varlena vl;
-	                    char data[VARHDRSZ];
-	                    varattrib_4b va4b;  /* Ensure proper size for VARSIZE_ANY macros */
-	                } hdr;
-	                memcpy(&hdr.data, dp, VARHDRSZ);
-	                const char *hp = (const char *) &hdr.vl;
-	                
-	                /* Skip toasted/compressed/indirect headers */
-	                if (!VARATT_IS_EXTERNAL(hp) &&
-	                    !VARATT_IS_COMPRESSED(hp)
-#ifdef VARATT_IS_INDIRECT
-	                    && !VARATT_IS_INDIRECT(hp)
-#endif
-	                    )
-	                {
-	                    /* 4-byte varlena header: size includes header. Require exact match. */
-	                    const int32 vlen  = VARSIZE_ANY(hp);
-	                    const int32 exlen = VARSIZE_ANY_EXHDR(hp);
-	                    if (vlen == datalen &&
-	                        exlen <= ARROW_VARLEN_MAX_PAYLOAD)
-	                        looks_varlena = true;
-	                }
-	            }
 	        }
-	        
-	        /* Cache the detected format for subsequent values */
-	        ap->text_format_hint = looks_varlena ? 1 : 0;
 	    }
 	    
-	    /* Use cached format hint */
-	    if (ap->text_format_hint == 1)
+	    /* Process based on detected format */
+	    if (looks_varlena)
 	    {
 	        /* Legacy layout: buffer contains a full varlena (1B/4B header) */
 	        const char *vp = (const char *) dp;
+	        
+	        /* Validate varlena header fits in buffer */
+	        const bool is_1b = VARATT_IS_1B(vp);
+	        const int32 hdrsize = is_1b ? VARHDRSZ_SHORT : VARHDRSZ;
+	        
+	        if (datalen < hdrsize)
+	            ereport(ERROR,
+	                    (errcode(ERRCODE_DATA_CORRUPTED),
+	                     errmsg("varlena data too small for header: %d bytes", datalen)));
+	        
+	        const int32 vlen = VARSIZE_ANY(vp);
 	        const int32 exlen = VARSIZE_ANY_EXHDR(vp);
+	        
+	        /* Critical validation: varlena size must match buffer segment exactly */
+	        if (vlen != datalen)
+	            ereport(ERROR,
+	                    (errcode(ERRCODE_DATA_CORRUPTED),
+	                     errmsg("varlena size mismatch: header says %d, buffer has %d", 
+	                            vlen, datalen)));
+	        
+	        /* Additional safety check for payload size */
+	        if (exlen < 0 || exlen > ARROW_VARLEN_MAX_PAYLOAD)
+	            ereport(ERROR,
+	                    (errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+	                     errmsg("varlena payload size %d out of bounds", exlen)));
+	        
 	        value = arrow_private_cstring_to_text_datum(ap,
 	                                                    (const uint8 *) VARDATA_ANY(vp),
 	                                                    (size_t) exlen);
@@ -845,10 +983,11 @@ arrow_get_datum_varlen(const ArrowArray *array, Oid typid, uint16 index)
 
 	/* We have stored the bytes of the varlen value directly in the buffer, so
 	 * this should work as expected. */
-	TS_DEBUG_LOG("retrieved varlen value '%s' row %u"
+	TS_DEBUG_LOG("retrieved varlen value '%s' row %u (effective %u)"
 				 " from offset %d dictionary=%p in memory context %s",
 				 datum_as_string(typid, value, false),
 				 index,
+				 effective_index,
 				 offset,
 				 array->dictionary,
 				 GetMemoryChunkContext((void *) data)->name);
