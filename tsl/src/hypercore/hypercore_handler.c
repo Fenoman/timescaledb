@@ -416,6 +416,10 @@ typedef struct HypercoreScanDescData
 	TableScanDesc uscan_desc; /* scan descriptor for non-compressed relation */
 	Relation compressed_rel;
 	TableScanDesc cscan_desc; /* scan descriptor for compressed relation */
+	bool cscan_initialized; /* true if cscan_desc was properly initialized */
+	/* Original user keys - preserved for rescan to avoid buffer overflow */
+	int user_nkeys;         /* Original number of keys from user */
+	ScanKey user_keys;      /* Copy of original keys, length user_nkeys */
 	int64 returned_noncompressed_count;
 	int64 returned_compressed_count;
 	int32 compressed_row_count;
@@ -699,6 +703,21 @@ hypercore_beginscan(Relation relation, Snapshot snapshot, int nkeys, ScanKey key
 	scan->rs_base.rs_key = nkeys > 0 ? palloc0(sizeof(ScanKeyData) * nkeys * 2) : NULL;
 	scan->rs_base.rs_flags = flags;
 	scan->rs_base.rs_parallel = parallel_scan;
+	
+	/* Save original user keys to avoid buffer overflow in rescan.
+	 * The transformed keys in rs_base.rs_key can be more than nkeys,
+	 * but rescan needs the original count and keys. */
+	scan->user_nkeys = nkeys;
+	if (nkeys > 0)
+	{
+		scan->user_keys = palloc(sizeof(ScanKeyData) * nkeys);
+		memcpy(scan->user_keys, keys, sizeof(ScanKeyData) * nkeys);
+	}
+	else
+	{
+		scan->user_keys = NULL;
+	}
+	
 	scan->returned_noncompressed_count = 0;
 	scan->returned_compressed_count = 0;
 	scan->compressed_row_count = 0;
@@ -711,9 +730,22 @@ hypercore_beginscan(Relation relation, Snapshot snapshot, int nkeys, ScanKey key
 		return &scan->rs_base;
 	}
 
-	scan->compressed_rel = hypercore_open_compressed(relation, AccessShareLock);
-
-	if (should_skip_compressed_data(&scan->rs_base))
+	/* Check if we're skipping compressed data */
+	bool skip_compressed = should_skip_compressed_data(&scan->rs_base);
+	
+	/* ANALYZE needs access to compressed data for proper sampling, so override skip_compressed
+	 * if this is an ANALYZE scan. The scan_analyze_next_block/tuple functions rely on cscan_desc. */
+	if ((flags & SO_TYPE_ANALYZE) && skip_compressed)
+	{
+		ereport(WARNING,
+				(errmsg("forcing compressed data access for ANALYZE operation"),
+				 errdetail("ANALYZE requires sampling from both compressed and uncompressed data"),
+				 errhint("Consider disabling transparent decompression during ANALYZE")));
+		skip_compressed = false;
+	}
+	
+	/* Only open compressed relation if we actually need it */
+	if (skip_compressed)
 	{
 		/*
 		 * Don't read compressed data if transparent decompression is enabled
@@ -723,6 +755,11 @@ hypercore_beginscan(Relation relation, Snapshot snapshot, int nkeys, ScanKey key
 		 * from the compressed chunk, so avoid reading it again here.
 		 */
 		hypercore_scan_set_skip_compressed(&scan->rs_base, true);
+		scan->compressed_rel = NULL; /* Don't open compressed relation at all */
+	}
+	else
+	{
+		scan->compressed_rel = hypercore_open_compressed(relation, AccessShareLock);
 	}
 
 	initscan(scan, keys, nkeys);
@@ -748,12 +785,24 @@ hypercore_beginscan(Relation relation, Snapshot snapshot, int nkeys, ScanKey key
 	ParallelTableScanDesc cptscan =
 		parallel_scan ? (ParallelTableScanDesc) &cpscan->cpscandesc : NULL;
 
-	scan->cscan_desc = scan->compressed_rel->rd_tableam->scan_begin(scan->compressed_rel,
-																	snapshot,
-																	scan->rs_base.rs_nkeys,
-																	scan->rs_base.rs_key,
-																	cptscan,
-																	flags);
+	/* Only create compressed scan descriptor if we actually need to read compressed data.
+	 * This avoids unnecessary resource allocation and potential race conditions when
+	 * compressed data is being skipped anyway. */
+	if (!should_skip_compressed_data(&scan->rs_base) && scan->compressed_rel != NULL)
+	{
+		scan->cscan_desc = scan->compressed_rel->rd_tableam->scan_begin(scan->compressed_rel,
+																		snapshot,
+																		scan->rs_base.rs_nkeys,
+																		scan->rs_base.rs_key,
+																		cptscan,
+																		flags);
+		scan->cscan_initialized = true;
+	}
+	else
+	{
+		scan->cscan_desc = NULL;
+		scan->cscan_initialized = false;
+	}
 
 	return &scan->rs_base;
 }
@@ -763,8 +812,20 @@ hypercore_rescan(TableScanDesc sscan, ScanKey key, bool set_params, bool allow_s
 				 bool allow_sync, bool allow_pagemode)
 {
 	HypercoreScanDesc scan = (HypercoreScanDesc) sscan;
+	ScanKey ukeys;
 
-	initscan(scan, key, scan->rs_base.rs_nkeys);
+	/* If new keys provided, update our saved copy first */
+	if (key != NULL && scan->user_nkeys > 0)
+	{
+		memcpy(scan->user_keys, key, sizeof(ScanKeyData) * scan->user_nkeys);
+	}
+	
+	/* Use either the new keys or our saved original keys.
+	 * CRITICAL: We must use user_nkeys (original count) not rs_base.rs_nkeys
+	 * which may have been modified by initscan to hold transformed key count.
+	 * Using the wrong count causes buffer overflow! */
+	ukeys = (key != NULL) ? key : scan->user_keys;
+	initscan(scan, ukeys, scan->user_nkeys);
 	scan->reset = true;
 
 	if (sscan->rs_flags & SO_HYPERCORE_SKIP_COMPRESSED)
@@ -772,8 +833,9 @@ hypercore_rescan(TableScanDesc sscan, ScanKey key, bool set_params, bool allow_s
 	else
 		scan->hs_scan_state = HYPERCORE_SCAN_START;
 
+	/* Use transformed keys for compressed part rescan */
 	if (scan->cscan_desc)
-		table_rescan(scan->cscan_desc, key);
+		table_rescan(scan->cscan_desc, scan->rs_base.rs_key);
 
 	Relation relation = scan->uscan_desc->rs_rd;
 	const TableAmRoutine *oldtam = switch_to_heapam(relation);
@@ -786,13 +848,55 @@ static void
 hypercore_endscan(TableScanDesc sscan)
 {
 	HypercoreScanDesc scan = (HypercoreScanDesc) sscan;
+	Relation relation = sscan->rs_rd;
 
-	RelationDecrementReferenceCount(sscan->rs_rd);
+	/* Clean up compressed scan first, with comprehensive validation */
+	if (scan->cscan_initialized && scan->cscan_desc != NULL)
+	{
+		/* Additional consistency check: verify scan descriptor matches compressed relation */
+		if (scan->compressed_rel != NULL)
+		{
+			TableScanDesc tscan = (TableScanDesc) scan->cscan_desc;
+			if (!PointerIsValid(tscan) || 
+				tscan->rs_rd == NULL ||
+				tscan->rs_rd != scan->compressed_rel ||
+				tscan->rs_rd->rd_tableam != GetHeapamTableAmRoutine())
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("inconsistent compressed scan descriptor in hypercore_endscan"),
+						 errdetail("scan->rs_rd: %p, compressed_rel: %p, tableam: %p (expected heap), "
+								   "is_parallel_worker: %s",
+								   tscan ? tscan->rs_rd : NULL,
+								   scan->compressed_rel,
+								   (tscan && tscan->rs_rd) ? tscan->rs_rd->rd_tableam : NULL,
+								   IsParallelWorker() ? "yes" : "no")));
+			}
+		}
 
-	if (scan->cscan_desc)
 		table_endscan(scan->cscan_desc);
-	if (scan->compressed_rel)
-		table_close(scan->compressed_rel, AccessShareLock);
+		scan->cscan_desc = NULL; /* Clear to prevent double-free */
+		scan->cscan_initialized = false;
+	}
+	else if (scan->cscan_desc != NULL && !scan->cscan_initialized)
+	{
+		/* This should never happen - cscan_desc set without initialization flag */
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("uninitialized compressed scan descriptor detected"),
+				 errdetail("cscan_desc is non-NULL but cscan_initialized is false"),
+				 errhint("This indicates a bug in scan initialization logic.")));
+	}
+
+	/* Clean up uncompressed scan */
+	if (scan->uscan_desc)
+	{
+		const TableAmRoutine *oldtam = switch_to_heapam(relation);
+		relation->rd_tableam->scan_end(scan->uscan_desc);
+		relation->rd_tableam = oldtam;
+		scan->uscan_desc = NULL;
+	}
+
 #if PG17_GE
 	if (scan->canalyze_read_stream)
 		read_stream_end(scan->canalyze_read_stream);
@@ -800,14 +904,9 @@ hypercore_endscan(TableScanDesc sscan)
 		read_stream_end(scan->uanalyze_read_stream);
 #endif
 
-	Relation relation = sscan->rs_rd;
-
-	if (scan->uscan_desc)
-	{
-		const TableAmRoutine *oldtam = switch_to_heapam(relation);
-		relation->rd_tableam->scan_end(scan->uscan_desc);
-		relation->rd_tableam = oldtam;
-	}
+	/* Close compressed relation after cleaning up scans */
+	if (scan->compressed_rel)
+		table_close(scan->compressed_rel, AccessShareLock);
 
 	TS_DEBUG_LOG("scanned " INT64_FORMAT " tuples (" INT64_FORMAT " compressed, " INT64_FORMAT
 				 " noncompressed) in rel %s",
@@ -816,13 +915,22 @@ hypercore_endscan(TableScanDesc sscan)
 				 scan->returned_noncompressed_count,
 				 RelationGetRelationName(sscan->rs_rd));
 
+	/* Free allocated scan keys */
 	if (scan->rs_base.rs_key)
 		pfree(scan->rs_base.rs_key);
-
-	pfree(scan);
+	
+	/* Free saved user keys */
+	if (scan->user_keys)
+		pfree(scan->user_keys);
 
 	/* Clear the COPY TO filter state */
 	hypercore_skip_compressed_data_relid = InvalidOid;
+
+	/* Finally decrement reference count on main relation - do this last
+	 * to ensure relation remains valid during all cleanup operations */
+	RelationDecrementReferenceCount(relation);
+
+	pfree(scan);
 }
 
 static bool
@@ -872,6 +980,12 @@ hypercore_getnextslot_noncompressed(HypercoreScanDesc scan, ScanDirection direct
 	}
 	else if (direction == BackwardScanDirection)
 	{
+		/* Respect skip_compressed flag in backward scan */
+		if (scan->rs_base.rs_flags & SO_HYPERCORE_SKIP_COMPRESSED)
+		{
+			scan->hs_scan_state = HYPERCORE_SCAN_DONE;
+			return false;
+		}
 		scan->hs_scan_state = HYPERCORE_SCAN_COMPRESSED;
 		return hypercore_getnextslot(&scan->rs_base, direction, slot);
 	}
@@ -1006,8 +1120,22 @@ hypercore_get_latest_tid(TableScanDesc sscan, ItemPointer tid)
 	{
 		ItemPointerData decoded_tid;
 		uint16 tuple_index = hypercore_tid_decode(&decoded_tid, tid);
-		const Relation rel = scan->cscan_desc->rs_rd;
-		rel->rd_tableam->tuple_get_latest_tid(scan->cscan_desc, &decoded_tid);
+		
+		/* Handle case where cscan_desc may be NULL (e.g., after index_build_range_scan) */
+		if (scan->cscan_desc)
+		{
+			const Relation rel = scan->cscan_desc->rs_rd;
+			rel->rd_tableam->tuple_get_latest_tid(scan->cscan_desc, &decoded_tid);
+		}
+		else
+		{
+			/* Open temporary scan for compressed relation to get latest tid */
+			Relation crel = hypercore_open_compressed(sscan->rs_rd, AccessShareLock);
+			TableScanDesc tmp_scan = table_beginscan(crel, sscan->rs_snapshot, 0, NULL);
+			crel->rd_tableam->tuple_get_latest_tid(tmp_scan, &decoded_tid);
+			table_endscan(tmp_scan);
+			table_close(crel, NoLock);
+		}
 		hypercore_tid_encode(tid, &decoded_tid, tuple_index);
 	}
 	else
@@ -1352,7 +1480,25 @@ hypercore_tuple_tid_valid(TableScanDesc scan, ItemPointer tid)
 	}
 
 	(void) hypercore_tid_decode(&ctid, tid);
-	return cscan->compressed_rel->rd_tableam->tuple_tid_valid(cscan->cscan_desc, &ctid);
+	
+	/* Handle case where cscan_desc may be NULL (e.g., when skipping compressed data) */
+	if (cscan->cscan_desc != NULL)
+	{
+		return cscan->compressed_rel->rd_tableam->tuple_tid_valid(cscan->cscan_desc, &ctid);
+	}
+	else if (cscan->compressed_rel != NULL)
+	{
+		/* Open temporary scan to validate tid */
+		TableScanDesc tmp_scan = table_beginscan(cscan->compressed_rel, scan->rs_snapshot, 0, NULL);
+		bool valid = cscan->compressed_rel->rd_tableam->tuple_tid_valid(tmp_scan, &ctid);
+		table_endscan(tmp_scan);
+		return valid;
+	}
+	else
+	{
+		/* No compressed relation available, tid cannot be valid */
+		return false;
+	}
 }
 
 static bool
@@ -1857,7 +2003,7 @@ hypercore_tuple_delete(Relation relation, ItemPointer tid, CommandId cid, Snapsh
 {
 	TM_Result result = TM_Ok;
 
-	if (is_compressed_tid(tid) && hypercore_truncate_compressed)
+	if (is_compressed_tid(tid))
 	{
 		Relation crel = hypercore_open_compressed(relation, RowExclusiveLock);
 		ItemPointerData decoded_tid;
@@ -3291,8 +3437,9 @@ hypercore_index_build_range_scan(Relation relation, Relation indexRelation, Inde
 
 	/* Heap's index_build_range_scan() ended the scan, so set the scan
 	 * descriptor to NULL here in order to not try to close it again in our
-	 * own table_endscan(). */
+	 * own table_endscan(). Also clear the initialization flag. */
 	hscan->cscan_desc = NULL;
+	hscan->cscan_initialized = false;
 
 	FreeExecutorState(icstate.estate);
 	ExecDropSingleTupleTableSlot(icstate.slot);
