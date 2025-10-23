@@ -10,6 +10,7 @@
 #include <access/xact.h>
 #include <commands/copy.h>
 #include <executor/executor.h>
+#include <executor/tuptable.h>
 #include <nodes/parsenodes.h>
 #include <storage/lockdefs.h>
 
@@ -32,6 +33,7 @@ typedef struct CopyChunkState
 	CopyFromState cstate;
 	TableScanDesc scandesc;
 	Node *where_clause;
+	TupleTableSlot *transition_capture_slot;
 } CopyChunkState;
 
 extern void timescaledb_DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed,

@@ -8,6 +8,7 @@
 #include <postgres.h>
 #include <foreign/fdwapi.h>
 #include <nodes/execnodes.h>
+#include <executor/tuptable.h>
 
 #include "hypertable.h"
 
@@ -37,6 +38,7 @@ typedef struct ModifyHypertableState
 	int64 batches_filtered;
 	int64 batches_deleted;
 	int64 tuples_deleted;
+	TupleTableSlot *transition_capture_slot;
 } ModifyHypertableState;
 
 extern void ts_modify_hypertable_fixup_tlist(Plan *plan);

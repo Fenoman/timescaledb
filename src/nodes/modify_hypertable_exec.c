@@ -56,8 +56,10 @@
 #include <catalog/pg_attribute.h>
 #include <catalog/pg_type.h>
 #include <executor/execPartition.h>
+#include <executor/tuptable.h>
 #include <executor/nodeModifyTable.h>
 #include <foreign/foreign.h>
+#include <commands/trigger.h>
 #include <nodes/execnodes.h>
 #include <nodes/extensible.h>
 #include <nodes/makefuncs.h>
@@ -90,6 +92,7 @@ typedef struct ModifyTableContext
 {
 	/* Operation state */
 	ModifyTableState *mtstate;
+	ModifyHypertableState *ht_state;
 	EPQState *epqstate;
 	EState *estate;
 
@@ -170,11 +173,12 @@ static bool ExecOnConflictUpdate(ModifyTableContext *context,
 								 TupleTableSlot **returning);
 
 static TupleTableSlot *ExecPrepareTupleRouting(ModifyTableState *mtstate,
-											   EState *estate,
-											   ChunkDispatchState *cds,
-											   ResultRelInfo *targetRelInfo,
-											   TupleTableSlot *slot,
-											   ResultRelInfo **partRelInfo);
+							ModifyHypertableState *ht_state,
+							EState *estate,
+							ChunkDispatchState *cds,
+							ResultRelInfo *targetRelInfo,
+							TupleTableSlot *slot,
+							ResultRelInfo **partRelInfo);
 
 static TupleTableSlot *ExecMerge(ModifyTableContext *context,
 								 ResultRelInfo *resultRelInfo,
@@ -549,6 +553,7 @@ ExecGetInsertNewTuple(ResultRelInfo *relinfo,
  */
 static TupleTableSlot *
 ExecPrepareTupleRouting(ModifyTableState *mtstate,
+						ModifyHypertableState *ht_state,
 						EState *estate,
 						ChunkDispatchState *cds,
 						ResultRelInfo *targetRelInfo,
@@ -556,6 +561,45 @@ ExecPrepareTupleRouting(ModifyTableState *mtstate,
 						ResultRelInfo **partRelInfo)
 {
 	ChunkInsertState *cis = cds->cis;
+
+	if (mtstate != NULL && mtstate->mt_transition_capture != NULL)
+	{
+		TriggerDesc *trigdesc = cds->rri->ri_TrigDesc;
+		bool has_before_insert_row_trig = (trigdesc && trigdesc->trig_insert_before_row);
+
+		if (!has_before_insert_row_trig)
+		{
+			if (ht_state != NULL)
+			{
+				TupleTableSlot *trans_slot = ht_state->transition_capture_slot;
+				MemoryContext oldcxt;
+
+				if (trans_slot == NULL ||
+					trans_slot->tts_tupleDescriptor != RelationGetDescr(targetRelInfo->ri_RelationDesc))
+				{
+					if (trans_slot != NULL)
+						ExecDropSingleTupleTableSlot(trans_slot);
+
+					oldcxt = MemoryContextSwitchTo(estate->es_query_cxt);
+					trans_slot = MakeSingleTupleTableSlot(
+						RelationGetDescr(targetRelInfo->ri_RelationDesc),
+						&TTSOpsVirtual);
+					MemoryContextSwitchTo(oldcxt);
+
+					ht_state->transition_capture_slot = trans_slot;
+				}
+
+				ExecCopySlot(ht_state->transition_capture_slot, slot);
+				mtstate->mt_transition_capture->tcs_original_insert_tuple =
+					ht_state->transition_capture_slot;
+			}
+			else
+				mtstate->mt_transition_capture->tcs_original_insert_tuple = slot;
+		}
+		else
+			mtstate->mt_transition_capture->tcs_original_insert_tuple = NULL;
+	}
+
 	/* Convert the tuple to the chunk's rowtype, if necessary */
 	if (cis->hyper_to_chunk_map != NULL && cds->is_dropped_attr_exists == false)
 		slot = execute_attr_map_slot(cis->hyper_to_chunk_map->attrMap, slot, cis->slot);
@@ -602,6 +646,9 @@ ExecInsert(ModifyTableContext *context,
 	OnConflictAction onconflict = node->onConflictAction;
 	MemoryContext oldContext;
 
+	if (mtstate->mt_transition_capture != NULL)
+		mtstate->mt_transition_capture->tcs_original_insert_tuple = NULL;
+
 	Assert(!mtstate->mt_partition_tuple_routing);
 
 	/*
@@ -612,9 +659,9 @@ ExecInsert(ModifyTableContext *context,
 	{
 		ResultRelInfo *partRelInfo;
 
-		slot = ExecPrepareTupleRouting(mtstate, estate, cds,
-									   resultRelInfo, slot,
-									   &partRelInfo);
+		slot = ExecPrepareTupleRouting(mtstate, context->ht_state, estate, cds,
+										   resultRelInfo, slot,
+										   &partRelInfo);
 		resultRelInfo = partRelInfo;
 	}
 
@@ -2389,6 +2436,7 @@ ExecModifyTable(CustomScanState *cs_node, PlanState *pstate)
 	}
 	/* Set global context */
 	context.mtstate = node;
+	context.ht_state = ht_state;
 	context.epqstate = &node->mt_epqstate;
 	context.estate = estate;
 	/*

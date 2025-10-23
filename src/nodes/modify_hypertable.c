@@ -7,6 +7,7 @@
 #include <postgres.h>
 #include <nodes/execnodes.h>
 #include <nodes/makefuncs.h>
+#include <executor/tuptable.h>
 
 #include "chunk_tuple_routing.h"
 #include "nodes/chunk_append/chunk_append.h"
@@ -101,6 +102,14 @@ modify_hypertable_exec(CustomScanState *node)
 static void
 modify_hypertable_end(CustomScanState *node)
 {
+	ModifyHypertableState *state = (ModifyHypertableState *) node;
+
+	if (state->transition_capture_slot != NULL)
+	{
+		ExecDropSingleTupleTableSlot(state->transition_capture_slot);
+		state->transition_capture_slot = NULL;
+	}
+
 	ExecEndNode(linitial(node->custom_ps));
 }
 
