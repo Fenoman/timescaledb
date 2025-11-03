@@ -431,7 +431,8 @@ terminate_backends_by_backend_type(const char *backend_type)
 	{
 		const LocalPgBackendStatus *local_beentry =
 			pgstat_get_local_beentry_by_index_compat(curr_backend);
-		const PgBackendStatus *beentry = &local_beentry->backendStatus;
+		const PgBackendStatus *beentry =
+			(const PgBackendStatus *) &local_beentry->backendStatus;
 		const char *bgw_type = GetBackgroundWorkerTypeByPid(beentry->st_procpid);
 		if (bgw_type && strcmp(backend_type, bgw_type) == 0)
 		{
