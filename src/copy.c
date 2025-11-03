@@ -33,6 +33,7 @@
 #include <commands/trigger.h>
 #include <executor/executor.h>
 #include <executor/nodeModifyTable.h>
+#include <executor/tuptable.h>
 #include <miscadmin.h>
 #include <nodes/makefuncs.h>
 #include <optimizer/optimizer.h>
@@ -165,6 +166,7 @@ copy_chunk_state_create(Hypertable *ht, Relation rel, CopyFromFunc from_func, Co
 	ccstate->scandesc = scandesc;
 	ccstate->next_copy_from = from_func;
 	ccstate->where_clause = NULL;
+	ccstate->transition_capture_slot = NULL;
 
 	return ccstate;
 }
@@ -734,6 +736,12 @@ TSCopyMultiInsertInfoStore(TSCopyMultiInsertInfo *miinfo, ResultRelInfo *rri,
 static void
 copy_chunk_state_destroy(CopyChunkState *ccstate)
 {
+	if (ccstate->transition_capture_slot != NULL)
+	{
+		ExecDropSingleTupleTableSlot(ccstate->transition_capture_slot);
+		ccstate->transition_capture_slot = NULL;
+	}
+
 	ts_chunk_tuple_routing_destroy(ccstate->ctr);
 	FreeExecutorState(ccstate->estate);
 }
@@ -1069,6 +1077,45 @@ copyfrom(CopyChunkState *ccstate, ParseState *pstate, Hypertable *ht, MemoryCont
 		MemoryContextSwitchTo(oldcontext);
 
 		buffer = TSCopyMultiInsertInfoGetOrSetupBuffer(&multiInsertInfo, cis, point, insertMethod);
+
+		/* Preserve original tuple for statement-level transition tables */
+		if (ccstate->cstate && ccstate->cstate->transition_capture)
+		{
+			TransitionCaptureState *capture = ccstate->cstate->transition_capture;
+			TriggerDesc *chunk_trigdesc = cis->result_relation_info->ri_TrigDesc;
+			bool chunk_has_before_trig =
+				(chunk_trigdesc && chunk_trigdesc->trig_insert_before_row);
+
+			if (capture->tcs_insert_new_table && !chunk_has_before_trig)
+			{
+				TupleTableSlot *trans_slot = ccstate->transition_capture_slot;
+				TupleDesc ht_tupdesc = myslot->tts_tupleDescriptor;
+
+				if (trans_slot == NULL || trans_slot->tts_tupleDescriptor != ht_tupdesc)
+				{
+					MemoryContext oldcxt2;
+
+					if (trans_slot != NULL)
+					{
+						ExecDropSingleTupleTableSlot(trans_slot);
+						trans_slot = NULL;
+					}
+
+					oldcxt2 = MemoryContextSwitchTo(ccstate->estate->es_query_cxt);
+					trans_slot = MakeSingleTupleTableSlot(ht_tupdesc, &TTSOpsVirtual);
+					MemoryContextSwitchTo(oldcxt2);
+
+					ccstate->transition_capture_slot = trans_slot;
+				}
+
+				ExecCopySlot(ccstate->transition_capture_slot, myslot);
+				capture->tcs_original_insert_tuple = ccstate->transition_capture_slot;
+			}
+			else
+			{
+				capture->tcs_original_insert_tuple = NULL;
+			}
+		}
 
 		/*
 		 * If the insert method has changed, we need to flush the
