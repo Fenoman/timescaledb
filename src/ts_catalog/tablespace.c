@@ -234,10 +234,32 @@ revoke_tuple_found(TupleInfo *ti, void *data)
 	foreach (lc_role, stmt->grantees)
 	{
 		RoleSpec *role = lfirst(lc_role);
-		Oid roleoid = get_role_oid_or_public(role->rolename);
+		bool relevant = false;
+		Oid roleoid = InvalidOid;
 
-		/* Check if this is a role we're interested in */
-		if (!OidIsValid(roleoid))
+		/*
+		 * Avoid calling get_role_oid_or_public with a NULL rolename (e.g., for PUBLIC),
+		 * which can lead to crashes in NSS lookups. Instead, use RoleSpec-aware logic.
+		 */
+		switch (role->roletype)
+		{
+			case ROLESPEC_PUBLIC:
+				/* PUBLIC always applies to all roles, so this REVOKE is relevant */
+				relevant = true;
+				break;
+			case ROLESPEC_CSTRING:
+			case ROLESPEC_CURRENT_USER:
+			case ROLESPEC_SESSION_USER:
+				roleoid = get_rolespec_oid(role, true);
+				if (OidIsValid(roleoid))
+					relevant = true;
+				break;
+			default:
+				/* Be conservative and skip unknown spec types */
+				break;
+		}
+
+		if (!relevant)
 			continue;
 
 		/*
