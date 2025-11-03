@@ -7,6 +7,7 @@
 #include <postgres.h>
 #include <nodes/execnodes.h>
 #include <nodes/makefuncs.h>
+#include <executor/tuptable.h>
 #include <utils/syscache.h>
 
 #include "compat/compat.h"
@@ -195,6 +196,12 @@ modify_hypertable_end(CustomScanState *node)
 		}
 		state->explain_saved_tlist = NULL;
 		state->explain_saved_custom_scan_tlist = NULL;
+	}
+
+	if (state->transition_capture_slot != NULL)
+	{
+		ExecDropSingleTupleTableSlot(state->transition_capture_slot);
+		state->transition_capture_slot = NULL;
 	}
 
 	if (state->compressor)
