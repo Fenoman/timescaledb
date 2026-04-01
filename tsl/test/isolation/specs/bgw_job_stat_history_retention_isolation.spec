@@ -8,9 +8,10 @@
 #
 
 setup {
+    -- Use fixed day offsets so the retained row count does not depend on the current month length.
     INSERT INTO _timescaledb_internal.bgw_job_stat_history(job_id, pid, succeeded, execution_start, execution_finish)
         SELECT 100 as job_id, 12345 as pid, true as succeeded, ts as execution_start, ts + interval '5 minutes' as execution_finish
-        FROM generate_series(now() - interval '2 months', now(), interval '1 week') as ts;
+        FROM generate_series(now() - interval '56 days', now() - interval '7 days', interval '1 week') as ts;
 
     -- Verify # of rows that should be kept
     SELECT count(*) as expected_count FROM _timescaledb_internal.bgw_job_stat_history WHERE execution_finish > now() - interval '1 month';
