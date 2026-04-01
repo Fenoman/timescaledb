@@ -1481,6 +1481,8 @@ process_vacuum(ProcessUtilityArgs *args)
 	cleaned up because of which there is a crash.
 	*/
 	stmt->rels = saved_stmt_rels;
+	list_free_deep(vacuum_rels);
+	list_free_deep(ctx.chunk_rels);
 	return DDL_DONE;
 }
 
@@ -2066,7 +2068,9 @@ process_grant_add_by_name(GrantStmt *stmt, bool was_schema_op, Name schema_name,
 	if (!already_added)
 	{
 		process_grant_add_by_rel(stmt,
-								 makeRangeVar(NameStr(*schema_name), NameStr(*table_name), -1));
+								 makeRangeVar(pstrdup(NameStr(*schema_name)),
+											  pstrdup(NameStr(*table_name)),
+											  -1));
 	}
 }
 
@@ -2840,7 +2844,14 @@ static void
 rename_hypertable_constraint(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	RenameStmt *stmt = (RenameStmt *) arg;
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping constraint rename for missing chunk %u", chunk_relid);
+		return;
+	}
+
 	RangeVar *chunk_rel =
 		makeRangeVar(NameStr(chunk->fd.schema_name), NameStr(chunk->fd.table_name), 0);
 	char old_chunk_name[NAMEDATALEN];
@@ -2970,7 +2981,13 @@ static void
 rename_hypertable_trigger(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	RenameStmt *stmt = copyObject(castNode(RenameStmt, arg));
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping trigger rename for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	stmt->relation = makeRangeVar(NameStr(chunk->fd.schema_name), NameStr(chunk->fd.table_name), 0);
 	renametrig(stmt);
@@ -3316,7 +3333,13 @@ static void
 process_add_constraint_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	const ChunkConstraintInfo *info = arg;
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping constraint processing for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	switch (info->cmd->subtype)
 	{
@@ -3419,7 +3442,14 @@ process_altertable_validate_constraint_end(Hypertable *ht, AlterTableCmd *cmd)
 static void
 validate_set_not_null(Hypertable *ht, Oid chunk_relid, void *arg)
 {
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping not-null validation for missing chunk %u", chunk_relid);
+		return;
+	}
+
 	if (ts_chunk_is_compressed(chunk))
 	{
 		StringInfoData command;
@@ -4895,7 +4925,8 @@ process_altertable_set_tablespace_end(Hypertable *ht, AlterTableCmd *cmd)
 		foreach (lc, chunks)
 		{
 			Chunk *chunk = lfirst(lc);
-			AlterTableInternal(chunk->table_id, list_make1(cmd), false);
+			if (chunk && OidIsValid(chunk->table_id))
+				AlterTableInternal(chunk->table_id, list_make1(cmd), false);
 		}
 		process_altertable_set_tablespace_end(compressed_hypertable, cmd);
 	}
