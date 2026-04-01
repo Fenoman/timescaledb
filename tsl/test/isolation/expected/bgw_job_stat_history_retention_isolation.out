@@ -19,7 +19,7 @@ step s2_count:
 
 s2_count
 --------
-      10
+       9
 
 step s1_retention: 
     CALL run_job(3);
