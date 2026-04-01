@@ -1164,6 +1164,47 @@ ts_get_all_vacuum_rels(bool is_vacuumcmd, VacuumCtx *ctx)
 	return vacrels;
 }
 
+static Oid
+vacuum_relation_get_relid(VacuumRelation *vacuum_rel)
+{
+	Oid table_relid = vacuum_rel->oid;
+
+	if (!OidIsValid(table_relid) && vacuum_rel->relation != NULL)
+		table_relid = RangeVarGetRelid(vacuum_rel->relation, NoLock, true);
+
+	return table_relid;
+}
+
+static VacuumRelation *
+vacuum_relation_deep_copy(VacuumRelation *vacuum_rel)
+{
+	RangeVar *relation = NULL;
+	List *va_cols = NIL;
+
+	if (vacuum_rel->relation != NULL)
+		relation = copyObject(vacuum_rel->relation);
+
+	if (vacuum_rel->va_cols != NIL)
+		va_cols = copyObject(vacuum_rel->va_cols);
+
+	return makeVacuumRelation(relation, vacuum_rel->oid, va_cols);
+}
+
+static List *
+vacuum_relation_list_deep_copy(List *vacuum_rels)
+{
+	List *copy = NIL;
+	ListCell *lc;
+
+	foreach (lc, vacuum_rels)
+	{
+		VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
+		copy = lappend(copy, vacuum_relation_deep_copy(vacuum_rel));
+	}
+
+	return copy;
+}
+
 /* Vacuums/Analyzes a hypertable and all of it's chunks */
 static DDLResult
 process_vacuum(ProcessUtilityArgs *args)
@@ -1179,7 +1220,9 @@ process_vacuum(ProcessUtilityArgs *args)
 	ListCell *lc;
 	Hypertable *ht;
 	List *vacuum_rels = NIL;
+	List *exec_rels = NIL;
 	bool is_vacuumcmd;
+	bool found_hypertable = false;
 	/* save original VacuumRelation list */
 	List *saved_stmt_rels = stmt->rels;
 
@@ -1200,18 +1243,50 @@ process_vacuum(ProcessUtilityArgs *args)
 	}
 
 	if (stmt->rels == NIL)
+	{
 		vacuum_rels = ts_get_all_vacuum_rels(is_vacuumcmd, &ctx);
+		/*
+		 * Avoid intercepting VACUUM when there are no hypertables among the
+		 * selected relations. This keeps ordinary table and catalog VACUUM
+		 * paths on PostgreSQL's ownership model.
+		 */
+		if (vacuum_rels != NIL)
+		{
+			Cache *hcache = ts_hypertable_cache_pin();
+
+			foreach (lc, vacuum_rels)
+			{
+				VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
+				Oid table_relid = vacuum_relation_get_relid(vacuum_rel);
+
+				if (OidIsValid(table_relid) &&
+					ts_hypertable_cache_get_entry(hcache, table_relid, CACHE_FLAG_MISSING_OK))
+				{
+					found_hypertable = true;
+					break;
+				}
+			}
+			ts_cache_release(&hcache);
+		}
+	}
 	else
 	{
 		Cache *hcache = ts_hypertable_cache_pin();
 
 		foreach (lc, stmt->rels)
 		{
-			VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
-			Oid table_relid = vacuum_rel->oid;
+			Node *node = lfirst(lc);
+			VacuumRelation *vacuum_rel = NULL;
+			Oid table_relid;
 
-			if (!OidIsValid(table_relid) && vacuum_rel->relation != NULL)
-				table_relid = RangeVarGetRelid(vacuum_rel->relation, NoLock, true);
+			if (IsA(node, VacuumRelation))
+				vacuum_rel = vacuum_relation_deep_copy(castNode(VacuumRelation, node));
+			else if (IsA(node, RangeVar))
+				vacuum_rel = makeVacuumRelation(copyObject(castNode(RangeVar, node)), InvalidOid, NIL);
+			else
+				continue;
+
+			table_relid = vacuum_relation_get_relid(vacuum_rel);
 
 			if (OidIsValid(table_relid))
 			{
@@ -1219,6 +1294,7 @@ process_vacuum(ProcessUtilityArgs *args)
 
 				if (ht)
 				{
+					found_hypertable = true;
 					ctx.ht_vacuum_rel = vacuum_rel;
 					foreach_chunk(ht, add_chunk_to_vacuum, &ctx);
 				}
@@ -1228,11 +1304,23 @@ process_vacuum(ProcessUtilityArgs *args)
 		ts_cache_release(&hcache);
 	}
 
-	stmt->rels = list_concat(ctx.chunk_rels, vacuum_rels);
+	if (!found_hypertable)
+	{
+		list_free_deep(vacuum_rels);
+		list_free_deep(ctx.chunk_rels);
+		return DDL_CONTINUE;
+	}
+
+	/*
+	 * ExecVacuum takes ownership of the list it processes, so hand it a fully
+	 * isolated copy and keep our bookkeeping structures independent.
+	 */
+	exec_rels = list_concat(vacuum_relation_list_deep_copy(vacuum_rels),
+							 vacuum_relation_list_deep_copy(ctx.chunk_rels));
 
 	/* The list of rels to vacuum could be empty if we are only vacuuming a
 	 * tiered hypertable with no local chunks. In that case, we don't want to vacuum locally. */
-	if (list_length(stmt->rels) > 0)
+	if (exec_rels != NIL)
 	{
 		PreventCommandDuringRecovery(is_vacuumcmd ? "VACUUM" : "ANALYZE");
 
@@ -1248,7 +1336,20 @@ process_vacuum(ProcessUtilityArgs *args)
 			}
 		}
 		/* ACL permission checks inside vacuum_rel and analyze_rel called by this ExecVacuum */
-		ExecVacuum(args->parse_state, stmt, is_toplevel);
+		PG_TRY();
+		{
+			stmt->rels = exec_rels;
+			ExecVacuum(args->parse_state, stmt, is_toplevel);
+			stmt->rels = saved_stmt_rels;
+		}
+		PG_CATCH();
+		{
+			stmt->rels = saved_stmt_rels;
+			list_free_deep(vacuum_rels);
+			list_free_deep(ctx.chunk_rels);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
 	}
 	/*
 	Restore original list. stmt->rels which has references to
