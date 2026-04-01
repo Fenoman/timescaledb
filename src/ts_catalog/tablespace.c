@@ -248,6 +248,7 @@ revoke_tuple_found(TupleInfo *ti, void *data)
 				relevant = true;
 				break;
 			case ROLESPEC_CSTRING:
+			case ROLESPEC_CURRENT_ROLE:
 			case ROLESPEC_CURRENT_USER:
 			case ROLESPEC_SESSION_USER:
 				roleoid = get_rolespec_oid(role, true);
