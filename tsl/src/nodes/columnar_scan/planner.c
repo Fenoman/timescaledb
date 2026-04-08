@@ -24,6 +24,7 @@
 #include <utils/builtins.h>
 #include <utils/typcache.h>
 
+#include "compat/compat.h"
 #include "compression/compression.h"
 #include "compression/create.h"
 #include "custom_type_cache.h"
@@ -571,7 +572,10 @@ replace_compressed_vars(Node *node, const CompressionInfo *info)
 		/* And return the replacement var */
 		return (Node *) new_var;
 	}
-	return expression_tree_mutator(node, replace_compressed_vars, (void *) info);
+	if (IsA(node, PlaceHolderVar))
+		elog(ERROR, "ignoring placeholders");
+
+	return ts_expression_tree_mutator(node, replace_compressed_vars, (void *) info);
 }
 
 /*

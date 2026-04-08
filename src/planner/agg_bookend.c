@@ -115,7 +115,7 @@ mutate_aggref_node(Node *node, MutatorContext *context)
 			}
 		}
 	}
-	return expression_tree_mutator(node, mutate_aggref_node, (void *) context);
+	return ts_expression_tree_mutator(node, mutate_aggref_node, (void *) context);
 }
 
 /*

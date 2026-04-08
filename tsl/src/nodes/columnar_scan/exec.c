@@ -137,7 +137,7 @@ constify_tableoid_walker(Node *node, ConstifyTableOidContext *ctx)
 		return node;
 	}
 
-	return expression_tree_mutator(node, constify_tableoid_walker, (void *) ctx);
+	return ts_expression_tree_mutator(node, constify_tableoid_walker, (void *) ctx);
 }
 
 static List *

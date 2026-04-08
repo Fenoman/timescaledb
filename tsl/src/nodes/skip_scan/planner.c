@@ -719,7 +719,7 @@ tsl_skip_scan_paths_add(PlannerInfo *root, RelOptInfo *input_rel, RelOptInfo *ou
 			if (!new_paths)
 				continue;
 
-			subpath = (Path *) create_append_path(root,
+			subpath = (Path *) ts_create_append_path(root,
 												  append_path->path.parent,
 												  new_paths,
 												  NULL,
