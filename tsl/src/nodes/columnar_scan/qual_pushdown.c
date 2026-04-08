@@ -13,6 +13,7 @@
 #include <utils/builtins.h>
 #include <utils/typcache.h>
 
+#include "compat/compat.h"
 #include "columnar_scan.h"
 #include "compression/batch_metadata_builder.h"
 #include "compression/create.h"
@@ -1292,7 +1293,7 @@ qual_pushdown_mutator(Node *orig_node, QualPushdownContext *context)
 			 */
 			QualPushdownContext tmp_context = copy_context(context);
 			void *pushed_down =
-				expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, &tmp_context);
+				ts_expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, &tmp_context);
 			if (tmp_context.can_pushdown && !tmp_context.needs_recheck)
 			{
 				return pushed_down;
@@ -1360,7 +1361,7 @@ qual_pushdown_mutator(Node *orig_node, QualPushdownContext *context)
 			 */
 			QualPushdownContext tmp_context = copy_context(context);
 			void *pushed_down =
-				expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, &tmp_context);
+				ts_expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, &tmp_context);
 			if (tmp_context.can_pushdown && !tmp_context.needs_recheck)
 			{
 				return pushed_down;
@@ -1407,7 +1408,7 @@ qual_pushdown_mutator(Node *orig_node, QualPushdownContext *context)
 		case T_ArrayExpr:
 		{
 			Node *pushed_down =
-				expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, context);
+				ts_expression_tree_mutator((Node *) orig_node, qual_pushdown_mutator, context);
 			return pushed_down;
 		}
 

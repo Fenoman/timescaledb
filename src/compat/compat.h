@@ -708,6 +708,100 @@ pg_cmp_u32(uint32 a, uint32 b)
 	make_range(typcache, lower, upper, empty, escontext)
 #endif
 
+/*
+ * Some PostgreSQL-compatible distributions extend expression_tree_mutator
+ * with a flags argument. Detect the available API at configure time and keep
+ * a single wrapper for callers.
+ */
+#if TS_EXPRESSION_TREE_MUTATOR_HAS_FLAGS
+#define ts_expression_tree_mutator(node, mutator, context)                                          \
+	expression_tree_mutator(node, mutator, context, 0)
+#else
+#define ts_expression_tree_mutator(node, mutator, context) expression_tree_mutator(node, mutator, context)
+#endif
+
+/*
+ * Some downstream PostgreSQL builds extend cost_append/create_append_path.
+ * Dispatch to the detected signature instead of assuming a major version.
+ */
+#if TS_PGPRO_COST_APPEND_HAS_ROOT
+#define ts_cost_append(path, root) pgpro_cost_append(path, root)
+#elif TS_COST_APPEND_HAS_ROOT
+#define ts_cost_append(path, root) cost_append(path, root)
+#else
+#define ts_cost_append(path, root) cost_append(path)
+#endif
+
+#if TS_CREATE_APPEND_PATH_HAS_EXTRA_BOOL
+#define ts_create_append_path(root,                                                                \
+							  rel,                                                                 \
+							  subpaths,                                                            \
+							  partial_subpaths,                                                    \
+							  pathkeys,                                                            \
+							  required_outer,                                                      \
+							  parallel_workers,                                                    \
+							  parallel_aware,                                                      \
+							  rows)                                                                 \
+	create_append_path(root,                                                                       \
+					   rel,                                                                        \
+					   subpaths,                                                                   \
+					   partial_subpaths,                                                           \
+					   pathkeys,                                                                   \
+					   required_outer,                                                             \
+					   parallel_workers,                                                           \
+					   parallel_aware,                                                             \
+					   rows,                                                                       \
+					   false)
+#else
+#define ts_create_append_path(root,                                                                \
+							  rel,                                                                 \
+							  subpaths,                                                            \
+							  partial_subpaths,                                                    \
+							  pathkeys,                                                            \
+							  required_outer,                                                      \
+							  parallel_workers,                                                    \
+							  parallel_aware,                                                      \
+							  rows)                                                                 \
+	create_append_path(root,                                                                       \
+					   rel,                                                                        \
+					   subpaths,                                                                   \
+					   partial_subpaths,                                                           \
+					   pathkeys,                                                                   \
+					   required_outer,                                                             \
+					   parallel_workers,                                                           \
+					   parallel_aware,                                                             \
+					   rows)
+#endif
+
+/*
+ * Prefer tuple-level xmin/xmax accessors over direct tuple header inspection.
+ * These helpers keep the calling code stable if the underlying tuple-header
+ * representation changes across PostgreSQL versions or downstream builds.
+ */
+static inline TransactionId
+ts_heaptuple_get_xmin(HeapTuple tuple)
+{
+#if TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
+	return HeapTupleGetXmin(tuple);
+#elif TS_HEAPTUPLEHEADER_GET_XMIN_EXISTS
+	return HeapTupleHeaderGetXmin(tuple->t_data);
+#else
+#error "No compatible xmin accessor found for HeapTuple"
+#endif
+}
+
+static inline TransactionId
+ts_heaptuple_get_update_xid(HeapTuple tuple)
+{
+#if TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+	return HeapTupleGetUpdateXid(tuple);
+#elif TS_HEAPTUPLEHEADER_GET_UPDATE_XID_EXISTS
+	return HeapTupleHeaderGetUpdateXid(tuple->t_data);
+#else
+#error "No compatible update-xid accessor found for HeapTuple"
+#endif
+}
+
 /* Copied from PG17. We can remove it once we deprecate older versions. */
 #if PG17_LT
 static inline void

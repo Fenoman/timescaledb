@@ -16,6 +16,7 @@
 #include <utils/fmgroids.h>
 #include <utils/lsyscache.h>
 
+#include "compat/compat.h"
 #include "columnar_index_scan.h"
 #include "compression/create.h"
 #include "expression_utils.h"
@@ -538,7 +539,7 @@ rewrite_agg_tlist_mutator(Node *node, void *context)
 		return (Node *) aggref;
 	}
 
-	return expression_tree_mutator(node, rewrite_agg_tlist_mutator, context);
+	return ts_expression_tree_mutator(node, rewrite_agg_tlist_mutator, context);
 }
 
 /*

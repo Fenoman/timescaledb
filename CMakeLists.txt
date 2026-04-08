@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(CheckCCompilerFlag)
+include(CheckCSourceCompiles)
 include(CheckSymbolExists)
 include(GitCommands)
 include(GenerateScripts)
@@ -33,6 +34,53 @@ option(ENABLE_DEBUG_UTILS "Enable debug utilities for the extension." ON)
 # this option is mostly useful to enable assertions when the PostgreSQL we
 # compile against has it disabled.
 option(ASSERTIONS "Compile with assertion checks (default OFF)" OFF)
+
+set(TIMESCALEDB_DISABLE_LTO_DEFAULT OFF)
+if(DEFINED ENV{TIMESCALEDB_DISABLE_LTO})
+  if("$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "1")
+    set(TIMESCALEDB_DISABLE_LTO_DEFAULT ON)
+  elseif((NOT "$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "") AND
+         (NOT "$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "0"))
+    message(
+      FATAL_ERROR
+        "TIMESCALEDB_DISABLE_LTO must be set to 0 or 1 when provided in the environment"
+    )
+  endif()
+endif()
+
+option(
+  TIMESCALEDB_DISABLE_LTO
+  "Disable inherited LTO flags for TimescaleDB shared-library builds"
+  ${TIMESCALEDB_DISABLE_LTO_DEFAULT})
+
+if(TIMESCALEDB_DISABLE_LTO)
+  message(
+    STATUS
+      "TIMESCALEDB_DISABLE_LTO is enabled; inherited LTO flags will be stripped from TimescaleDB shared-library builds"
+  )
+endif()
+
+function(ts_filter_lto_flags_in_var varname)
+  if(NOT DEFINED ${varname})
+    return()
+  endif()
+
+  set(_ts_filtered_flags "${${varname}}")
+  if("${_ts_filtered_flags}" STREQUAL "")
+    return()
+  endif()
+
+  separate_arguments(_ts_filtered_flags NATIVE_COMMAND "${_ts_filtered_flags}")
+  list(FILTER _ts_filtered_flags EXCLUDE REGEX "^-flto($|=)")
+  list(FILTER _ts_filtered_flags EXCLUDE REGEX "^-ffat-lto-objects$")
+  # Keep the result as a plain space-delimited flag string. Leaving it as a
+  # CMake list leaks semicolons into try_compile feature checks, which then
+  # breaks checks that pass CMAKE_C_FLAGS through CMAKE_REQUIRED_FLAGS.
+  list(JOIN _ts_filtered_flags " " _ts_filtered_flags)
+  set(${varname}
+      "${_ts_filtered_flags}"
+      PARENT_SCOPE)
+endfunction()
 
 # Function to call pg_config and extract values.
 function(GET_PG_CONFIG var)
@@ -395,6 +443,108 @@ foreach(option ${PG_CFLAGS})
   endif()
 endforeach()
 set(PG_CFLAGS "${filtered} ${PG_CFLAGS_SL}")
+
+function(ts_header_matches var regex)
+  set(_ts_header_contents "")
+  foreach(_ts_header ${ARGN})
+    file(READ ${_ts_header} _ts_header_chunk)
+    string(APPEND _ts_header_contents "\n" "${_ts_header_chunk}")
+  endforeach()
+  string(REGEX MATCH "${regex}" _ts_header_match "${_ts_header_contents}")
+  if(_ts_header_match)
+    set(${var} 1 PARENT_SCOPE)
+  else()
+    set(${var} 0 PARENT_SCOPE)
+  endif()
+endfunction()
+
+function(ts_check_pg_c_source_compiles var code)
+  set(CMAKE_REQUIRED_INCLUDES "${PG_INCLUDEDIR_SERVER};${PG_INCLUDEDIR}")
+  set(
+    CMAKE_REQUIRED_FLAGS
+    "${PG_CFLAGS} ${PG_CPPFLAGS} -Werror -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
+  )
+  # Probe against headers only; downstream server builds may expose accessors as
+  # extern declarations without a linkable backend library at configure time.
+  set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+  check_c_source_compiles("${code}" ${var})
+endfunction()
+
+file(GLOB_RECURSE TS_PG_ACCESS_HEADERS "${PG_INCLUDEDIR_SERVER}/access/*.h")
+
+ts_header_matches(
+  TS_EXPRESSION_TREE_MUTATOR_HAS_FLAGS
+  "#define[ \t]+expression_tree_mutator\\([^\n\r,]+,[^\n\r,]+,[^\n\r,]+,[^\n\r,]+\\)"
+  ${PG_INCLUDEDIR_SERVER}/nodes/nodeFuncs.h)
+
+ts_header_matches(
+  TS_COST_APPEND_HAS_ROOT
+  "cost_append\\([^\\)]*PlannerInfo[ \t\r\n]*\\*[ \t\r\n]*[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/cost.h)
+
+ts_header_matches(
+  TS_PGPRO_COST_APPEND_HAS_ROOT
+  "pgpro_cost_append\\([^\\)]*PlannerInfo[ \t\r\n]*\\*[ \t\r\n]*[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/cost.h)
+
+ts_header_matches(
+  TS_CREATE_APPEND_PATH_HAS_EXTRA_BOOL
+  "create_append_path\\([^\\)]*double[ \t\r\n]+rows,[ \t\r\n]*bool[ \t\r\n]+[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/pathnode.h)
+
+ts_header_matches(
+  TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
+  "(#define[ \t]+HeapTupleGetXmin\\(|HeapTupleGetXmin\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
+  ${TS_PG_ACCESS_HEADERS})
+
+ts_header_matches(
+  TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+  "(#define[ \t]+HeapTupleGetUpdateXid\\(|HeapTupleGetUpdateXid\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
+  ${TS_PG_ACCESS_HEADERS})
+
+if(NOT TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE)
+  ts_check_pg_c_source_compiles(
+    TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
+    "
+#include \\\"postgres.h\\\"
+#include \\\"access/htup.h\\\"
+#include \\\"access/htup_details.h\\\"
+#include \\\"access/heapam.h\\\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleGetXmin(tuple);
+  return 0;
+}
+")
+endif()
+
+if(NOT TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE)
+  ts_check_pg_c_source_compiles(
+    TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+    "
+#include \\\"postgres.h\\\"
+#include \\\"access/htup.h\\\"
+#include \\\"access/htup_details.h\\\"
+#include \\\"access/heapam.h\\\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleGetUpdateXid(tuple);
+  return 0;
+}
+")
+endif()
+
+ts_header_matches(
+  TS_HEAPTUPLEHEADER_GET_XMIN_EXISTS
+  "HeapTupleHeaderGetXmin\\("
+  ${TS_PG_ACCESS_HEADERS})
+
+ts_header_matches(
+  TS_HEAPTUPLEHEADER_GET_UPDATE_XID_EXISTS
+  "HeapTupleHeaderGetUpdateXid\\("
+  ${TS_PG_ACCESS_HEADERS})
 
 find_path(
   PG_SOURCE_DIR src/include/pg_config.h.in

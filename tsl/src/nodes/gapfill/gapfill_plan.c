@@ -54,7 +54,7 @@ gapfill_aggref_mutator(Node *node, void *context)
 		return (Node *)
 			makeConst(((Aggref *) node)->aggtype, -1, InvalidOid, -2, UnassignedDatum, true, false);
 
-	return expression_tree_mutator(node, gapfill_aggref_mutator, context);
+	return ts_expression_tree_mutator(node, gapfill_aggref_mutator, context);
 }
 
 /*

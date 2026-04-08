@@ -22,6 +22,7 @@
 
 #include <math.h>
 
+#include "compat/compat.h"
 #include "chunk.h"
 #include "compression/api.h"
 #include "compression/compression.h"
@@ -558,7 +559,7 @@ copy_tuples_for_split(SplitContext *scontext)
 				 * own transaction. Give a warning if this case does not
 				 * apply; in any case we better copy it.
 				 */
-				if (!TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetXmin(tuple->t_data)))
+				if (!TransactionIdIsCurrentTransactionId(ts_heaptuple_get_xmin(tuple)))
 					elog(WARNING,
 						 "concurrent insert in progress within table \"%s\"",
 						 RelationGetRelationName(srcrel));
@@ -571,7 +572,7 @@ copy_tuples_for_split(SplitContext *scontext)
 				 * Similar situation to INSERT_IN_PROGRESS case.
 				 */
 				if (!TransactionIdIsCurrentTransactionId(
-						HeapTupleHeaderGetUpdateXid(tuple->t_data)))
+						ts_heaptuple_get_update_xid(tuple)))
 					elog(WARNING,
 						 "concurrent delete in progress within table \"%s\"",
 						 RelationGetRelationName(srcrel));
