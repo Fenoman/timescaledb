@@ -32,16 +32,6 @@ if(PG_LDFLAGS)
   set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${PG_LDFLAGS}")
 endif()
 
-if(TIMESCALEDB_DISABLE_LTO AND
-   CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-  ts_filter_lto_flags_in_var(CMAKE_C_FLAGS)
-  ts_filter_lto_flags_in_var(CMAKE_SHARED_LINKER_FLAGS)
-  ts_filter_lto_flags_in_var(CMAKE_MODULE_LINKER_FLAGS)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-lto")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-lto")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fno-lto")
-endif()
-
 if(APACHE_ONLY)
   add_definitions(-DAPACHE_ONLY)
 endif()

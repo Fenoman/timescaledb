@@ -35,53 +35,6 @@ option(ENABLE_DEBUG_UTILS "Enable debug utilities for the extension." ON)
 # compile against has it disabled.
 option(ASSERTIONS "Compile with assertion checks (default OFF)" OFF)
 
-set(TIMESCALEDB_DISABLE_LTO_DEFAULT OFF)
-if(DEFINED ENV{TIMESCALEDB_DISABLE_LTO})
-  if("$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "1")
-    set(TIMESCALEDB_DISABLE_LTO_DEFAULT ON)
-  elseif((NOT "$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "") AND
-         (NOT "$ENV{TIMESCALEDB_DISABLE_LTO}" STREQUAL "0"))
-    message(
-      FATAL_ERROR
-        "TIMESCALEDB_DISABLE_LTO must be set to 0 or 1 when provided in the environment"
-    )
-  endif()
-endif()
-
-option(
-  TIMESCALEDB_DISABLE_LTO
-  "Disable inherited LTO flags for TimescaleDB shared-library builds"
-  ${TIMESCALEDB_DISABLE_LTO_DEFAULT})
-
-if(TIMESCALEDB_DISABLE_LTO)
-  message(
-    STATUS
-      "TIMESCALEDB_DISABLE_LTO is enabled; inherited LTO flags will be stripped from TimescaleDB shared-library builds"
-  )
-endif()
-
-function(ts_filter_lto_flags_in_var varname)
-  if(NOT DEFINED ${varname})
-    return()
-  endif()
-
-  set(_ts_filtered_flags "${${varname}}")
-  if("${_ts_filtered_flags}" STREQUAL "")
-    return()
-  endif()
-
-  separate_arguments(_ts_filtered_flags NATIVE_COMMAND "${_ts_filtered_flags}")
-  list(FILTER _ts_filtered_flags EXCLUDE REGEX "^-flto($|=)")
-  list(FILTER _ts_filtered_flags EXCLUDE REGEX "^-ffat-lto-objects$")
-  # Keep the result as a plain space-delimited flag string. Leaving it as a
-  # CMake list leaks semicolons into try_compile feature checks, which then
-  # breaks checks that pass CMAKE_C_FLAGS through CMAKE_REQUIRED_FLAGS.
-  list(JOIN _ts_filtered_flags " " _ts_filtered_flags)
-  set(${varname}
-      "${_ts_filtered_flags}"
-      PARENT_SCOPE)
-endfunction()
-
 # Function to call pg_config and extract values.
 function(GET_PG_CONFIG var)
   set(_temp)
