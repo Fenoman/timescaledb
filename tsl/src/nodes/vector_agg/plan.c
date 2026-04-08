@@ -17,6 +17,7 @@
 #include <parser/parsetree.h>
 #include <utils/fmgroids.h>
 
+#include "compat/compat.h"
 #include "plan.h"
 
 #include "exec.h"
@@ -551,7 +552,7 @@ mark_partial_aggref_mutator(Node *node, void *context)
 		return node;
 	}
 
-	return expression_tree_mutator(node, mark_partial_aggref_mutator, context);
+	return ts_expression_tree_mutator(node, mark_partial_aggref_mutator, context);
 }
 
 typedef struct MakeFinalizeAggContext
@@ -610,7 +611,7 @@ make_finalize_agg_mutator(Node *node, void *context)
 		}
 	}
 
-	return expression_tree_mutator(node, make_finalize_agg_mutator, context);
+	return ts_expression_tree_mutator(node, make_finalize_agg_mutator, context);
 }
 
 static Plan *insert_vector_agg(Plan *plan, void *context);
@@ -796,7 +797,7 @@ insert_vector_agg(Plan *plan, void *context)
 		 */
 		CustomScan *vector_agg = castNode(CustomScan, vector_agg_plan);
 		vector_agg->custom_scan_tlist =
-			(List *) expression_tree_mutator((Node *) vector_agg->custom_scan_tlist,
+			(List *) ts_expression_tree_mutator((Node *) vector_agg->custom_scan_tlist,
 											 mark_partial_aggref_mutator,
 											 NULL);
 
@@ -827,10 +828,10 @@ insert_vector_agg(Plan *plan, void *context)
 			.old_grpColIdx = old_grpColIdx,
 			.vector_agg_targetlist = vector_agg->scan.plan.targetlist,
 		};
-		agg->plan.targetlist = (List *) expression_tree_mutator((Node *) agg->plan.targetlist,
+		agg->plan.targetlist = (List *) ts_expression_tree_mutator((Node *) agg->plan.targetlist,
 																make_finalize_agg_mutator,
 																&finalize_ctx);
-		agg->plan.qual = (List *) expression_tree_mutator((Node *) agg->plan.qual,
+		agg->plan.qual = (List *) ts_expression_tree_mutator((Node *) agg->plan.qual,
 														  make_finalize_agg_mutator,
 														  &finalize_ctx);
 

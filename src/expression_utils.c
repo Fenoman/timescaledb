@@ -13,6 +13,7 @@
 #include <nodes/primnodes.h>
 #include <utils/lsyscache.h>
 
+#include "compat/compat.h"
 #include "debug_assert.h"
 #include "export.h"
 #include "expression_utils.h"
@@ -171,7 +172,7 @@ resolve_outer_special_vars_mutator(Node *node, void *context)
 
 	if (!IsA(node, Var))
 	{
-		return expression_tree_mutator(node, resolve_outer_special_vars_mutator, context);
+		return ts_expression_tree_mutator(node, resolve_outer_special_vars_mutator, context);
 	}
 
 	Var *var = castNode(Var, node);

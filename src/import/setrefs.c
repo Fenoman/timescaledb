@@ -18,6 +18,8 @@
 
 #include "setrefs.h"
 
+#include "compat/compat.h"
+
 #include <nodes/makefuncs.h>
 #include <optimizer/tlist.h>
 #include <rewrite/rewriteDefine.h>
@@ -163,7 +165,7 @@ replace_tlist_expr_mutator(Node *node, replace_tlist_expr_context *context)
 		if (newvar)
 			return (Node *) newvar;
 	}
-	return expression_tree_mutator(node, replace_tlist_expr_mutator, context);
+	return ts_expression_tree_mutator(node, replace_tlist_expr_mutator, context);
 }
 
 /* Will try to rewrite query expression with subquery targets,
