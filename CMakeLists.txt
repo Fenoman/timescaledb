@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(CheckCCompilerFlag)
+include(CheckCSourceCompiles)
 include(CheckSymbolExists)
 include(GitCommands)
 include(GenerateScripts)
@@ -397,6 +398,108 @@ foreach(option ${PG_CFLAGS})
   endif()
 endforeach()
 set(PG_CFLAGS "${filtered} ${PG_CFLAGS_SL}")
+
+function(ts_header_matches var regex)
+  set(_ts_header_contents "")
+  foreach(_ts_header ${ARGN})
+    file(READ ${_ts_header} _ts_header_chunk)
+    string(APPEND _ts_header_contents "\n" "${_ts_header_chunk}")
+  endforeach()
+  string(REGEX MATCH "${regex}" _ts_header_match "${_ts_header_contents}")
+  if(_ts_header_match)
+    set(${var} 1 PARENT_SCOPE)
+  else()
+    set(${var} 0 PARENT_SCOPE)
+  endif()
+endfunction()
+
+function(ts_check_pg_c_source_compiles var code)
+  set(CMAKE_REQUIRED_INCLUDES "${PG_INCLUDEDIR_SERVER};${PG_INCLUDEDIR}")
+  set(
+    CMAKE_REQUIRED_FLAGS
+    "${PG_CFLAGS} ${PG_CPPFLAGS} -Werror -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
+  )
+  # Probe against headers only; downstream server builds may expose accessors as
+  # extern declarations without a linkable backend library at configure time.
+  set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+  check_c_source_compiles("${code}" ${var})
+endfunction()
+
+file(GLOB_RECURSE TS_PG_ACCESS_HEADERS "${PG_INCLUDEDIR_SERVER}/access/*.h")
+
+ts_header_matches(
+  TS_EXPRESSION_TREE_MUTATOR_HAS_FLAGS
+  "#define[ \t]+expression_tree_mutator\\([^\n\r,]+,[^\n\r,]+,[^\n\r,]+,[^\n\r,]+\\)"
+  ${PG_INCLUDEDIR_SERVER}/nodes/nodeFuncs.h)
+
+ts_header_matches(
+  TS_COST_APPEND_HAS_ROOT
+  "cost_append\\([^\\)]*PlannerInfo[ \t\r\n]*\\*[ \t\r\n]*[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/cost.h)
+
+ts_header_matches(
+  TS_PGPRO_COST_APPEND_HAS_ROOT
+  "pgpro_cost_append\\([^\\)]*PlannerInfo[ \t\r\n]*\\*[ \t\r\n]*[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/cost.h)
+
+ts_header_matches(
+  TS_CREATE_APPEND_PATH_HAS_EXTRA_BOOL
+  "create_append_path\\([^\\)]*double[ \t\r\n]+rows,[ \t\r\n]*bool[ \t\r\n]+[^\\)]*\\)"
+  ${PG_INCLUDEDIR_SERVER}/optimizer/pathnode.h)
+
+ts_header_matches(
+  TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
+  "(#define[ \t]+HeapTupleGetXmin\\(|HeapTupleGetXmin\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
+  ${TS_PG_ACCESS_HEADERS})
+
+ts_header_matches(
+  TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+  "(#define[ \t]+HeapTupleGetUpdateXid\\(|HeapTupleGetUpdateXid\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
+  ${TS_PG_ACCESS_HEADERS})
+
+if(NOT TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE)
+  ts_check_pg_c_source_compiles(
+    TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
+    "
+#include \\\"postgres.h\\\"
+#include \\\"access/htup.h\\\"
+#include \\\"access/htup_details.h\\\"
+#include \\\"access/heapam.h\\\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleGetXmin(tuple);
+  return 0;
+}
+")
+endif()
+
+if(NOT TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE)
+  ts_check_pg_c_source_compiles(
+    TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+    "
+#include \\\"postgres.h\\\"
+#include \\\"access/htup.h\\\"
+#include \\\"access/htup_details.h\\\"
+#include \\\"access/heapam.h\\\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleGetUpdateXid(tuple);
+  return 0;
+}
+")
+endif()
+
+ts_header_matches(
+  TS_HEAPTUPLEHEADER_GET_XMIN_EXISTS
+  "HeapTupleHeaderGetXmin\\("
+  ${TS_PG_ACCESS_HEADERS})
+
+ts_header_matches(
+  TS_HEAPTUPLEHEADER_GET_UPDATE_XID_EXISTS
+  "HeapTupleHeaderGetUpdateXid\\("
+  ${TS_PG_ACCESS_HEADERS})
 
 find_path(
   PG_SOURCE_DIR src/include/pg_config.h.in

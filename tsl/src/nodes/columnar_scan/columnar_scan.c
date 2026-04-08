@@ -1654,7 +1654,7 @@ build_on_single_compressed_path(PlannerInfo *root, const Chunk *chunk, RelOptInf
 			sequential_paths = lappend(sequential_paths, unordered_uncompressed_path);
 		}
 
-		Path *plain_append = (Path *) create_append_path(root,
+		Path *plain_append = (Path *) ts_create_append_path(root,
 														 chunk_rel,
 														 sequential_paths,
 														 parallel_paths,
@@ -2040,7 +2040,7 @@ chunk_joininfo_mutator(Node *node, CompressionInfo *context)
 		newinfo->right_mcvfreq = -1;
 		return (Node *) newinfo;
 	}
-	return expression_tree_mutator(node, chunk_joininfo_mutator, context);
+	return ts_expression_tree_mutator(node, chunk_joininfo_mutator, context);
 }
 
 /* Check if the expression references a compressed column in compressed chunk. */
