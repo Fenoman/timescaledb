@@ -14,6 +14,7 @@
 #include <optimizer/tlist.h>
 #include <utils/selfuncs.h>
 
+#include "compat/compat.h"
 #include "chunkwise_agg.h"
 
 #include "guc.h"
@@ -134,14 +135,14 @@ get_subpaths_from_append_path(Path *path, List **subpaths, Path **append, Path *
  * Copy an AppendPath and set new subpaths.
  */
 static AppendPath *
-copy_append_path(AppendPath *path, List *subpaths, PathTarget *pathtarget)
+copy_append_path(PlannerInfo *root, AppendPath *path, List *subpaths, PathTarget *pathtarget)
 {
 	AppendPath *newPath = makeNode(AppendPath);
 	memcpy(newPath, path, sizeof(AppendPath));
 	newPath->subpaths = subpaths;
 	newPath->path.pathtarget = copy_pathtarget(pathtarget);
 
-	cost_append(newPath);
+	ts_cost_append(newPath, root);
 
 	return newPath;
 }
@@ -171,7 +172,7 @@ copy_append_like_path(PlannerInfo *root, Path *path, List *new_subpaths, PathTar
 	if (IsA(path, AppendPath))
 	{
 		AppendPath *append_path = castNode(AppendPath, path);
-		AppendPath *new_append_path = copy_append_path(append_path, new_subpaths, pathtarget);
+		AppendPath *new_append_path = copy_append_path(root, append_path, new_subpaths, pathtarget);
 		return &new_append_path->path;
 	}
 	else if (IsA(path, MergeAppendPath))

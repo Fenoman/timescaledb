@@ -32,6 +32,7 @@
 
 #include <math.h>
 
+#include "compat/compat.h"
 #include "allpaths.h"
 #include "chunk.h"
 #include "compat/compat.h"
@@ -357,7 +358,7 @@ set_dummy_rel_pathlist(RelOptInfo *rel)
 	/* Set up the dummy path */
 	add_path(rel,
 			 (Path *)
-				 create_append_path(NULL, rel, NIL, NIL, NIL, rel->lateral_relids, 0, false, -1));
+				 ts_create_append_path(NULL, rel, NIL, NIL, NIL, rel->lateral_relids, 0, false, -1));
 
 	/*
 	 * We set the cheapest-path fields immediately, just in case they were
