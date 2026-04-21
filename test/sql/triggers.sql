@@ -339,3 +339,42 @@ CREATE TRIGGER t6 AFTER UPDATE ON transition_test REFERENCING NEW TABLE AS new_t
 CREATE TRIGGER t7 AFTER DELETE ON transition_test REFERENCING OLD TABLE AS old_trans FOR EACH ROW EXECUTE FUNCTION test_trigger();
 \set ON_ERROR_STOP 1
 
+-- test transition table capture with dropped columns
+CREATE TABLE transition_dropped_col(time timestamptz NOT NULL, drop_me integer, value integer);
+\pset format unaligned
+SELECT table_name FROM create_hypertable('transition_dropped_col','time', chunk_time_interval => interval '1 day');
+INSERT INTO transition_dropped_col VALUES ('2020-02-01 00:00:00+00', 7, 1);
+ALTER TABLE transition_dropped_col DROP COLUMN drop_me;
+
+CREATE TABLE transition_dropped_col_log(row_count integer, value_sum integer);
+CREATE FUNCTION transition_dropped_col_trigger()
+    RETURNS TRIGGER LANGUAGE PLPGSQL AS
+$BODY$
+BEGIN
+    INSERT INTO transition_dropped_col_log
+    SELECT count(*), sum(value)::integer FROM new_trans;
+    RETURN NULL;
+END
+$BODY$;
+
+CREATE TRIGGER transition_dropped_col_stmt
+    AFTER INSERT ON transition_dropped_col
+    REFERENCING NEW TABLE AS new_trans
+    FOR EACH STATEMENT EXECUTE FUNCTION transition_dropped_col_trigger();
+
+INSERT INTO transition_dropped_col(time, value) VALUES
+('2020-02-01 01:00:00+00', 2),
+('2020-02-02 00:00:00+00', 3);
+
+COPY transition_dropped_col(time, value) FROM STDIN;
+2020-02-01 02:00:00+00	10
+2020-02-02 01:00:00+00	20
+\.
+
+SELECT row_count || ':' || value_sum AS transition_log
+FROM transition_dropped_col_log
+ORDER BY row_count, value_sum;
+\pset format aligned
+DROP TABLE transition_dropped_col;
+DROP TABLE transition_dropped_col_log;
+DROP FUNCTION transition_dropped_col_trigger();

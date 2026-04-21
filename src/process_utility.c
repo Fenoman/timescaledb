@@ -36,6 +36,7 @@
 #include <nodes/parsenodes.h>
 #include <optimizer/optimizer.h>
 #include <parser/parse_expr.h>
+#include <parser/parse_func.h>
 #include <parser/parse_relation.h>
 #include <parser/parse_type.h>
 #include <parser/parse_utilcmd.h>
@@ -569,12 +570,17 @@ process_drop_procedure_start(DropStmt *stmt)
 		foreach (cell, stmt->objects)
 		{
 			ObjectWithArgs *object = castNode(ObjectWithArgs, lfirst(cell));
-			RangeVar *rel = makeRangeVarFromNameList(object->objname);
+			Oid dropped_proc_oid = LookupFuncWithArgs(stmt->removeType, object, true);
 
-			if (rel == NULL || rel->schemaname == NULL)
+			if (!OidIsValid(dropped_proc_oid))
 				continue;
-			if (namestrcmp(proc_schema, rel->schemaname) == 0 &&
-				namestrcmp(proc_name, rel->relname) == 0)
+
+			const char *dropped_proc_schema =
+				get_namespace_name(get_func_namespace(dropped_proc_oid));
+			const char *dropped_proc_name = get_func_name(dropped_proc_oid);
+
+			if (namestrcmp(proc_schema, dropped_proc_schema) == 0 &&
+				namestrcmp(proc_name, dropped_proc_name) == 0)
 			{
 				Assert(stmt->removeType == OBJECT_PROCEDURE || stmt->removeType == OBJECT_FUNCTION);
 				if (stmt->behavior == DROP_RESTRICT)
@@ -1313,10 +1319,11 @@ process_vacuum(ProcessUtilityArgs *args)
 
 	/*
 	 * ExecVacuum takes ownership of the list it processes, so hand it a fully
-	 * isolated copy and keep our bookkeeping structures independent.
+	 * isolated copy and keep our bookkeeping structures independent. Keep
+	 * Timescale's original chunks-first order for lock acquisition behavior.
 	 */
-	exec_rels = list_concat(vacuum_relation_list_deep_copy(vacuum_rels),
-							 vacuum_relation_list_deep_copy(ctx.chunk_rels));
+	exec_rels = list_concat(vacuum_relation_list_deep_copy(ctx.chunk_rels),
+							 vacuum_relation_list_deep_copy(vacuum_rels));
 
 	/* The list of rels to vacuum could be empty if we are only vacuuming a
 	 * tiered hypertable with no local chunks. In that case, we don't want to vacuum locally. */
