@@ -407,6 +407,7 @@ ts_compression_settings_get(Oid relid)
 	TupleInfo *ti = ts_scanner_next(&iterator.ctx);
 	if (!ti)
 	{
+		ts_scan_iterator_close(&iterator);
 		return NULL;
 	}
 
