@@ -545,7 +545,7 @@ set_compressed_baserel_size_estimates(PlannerInfo *root, RelOptInfo *rel,
 	AttrNumber *storage = palloc0(storage_elements * sizeof(*storage));
 	SelectivityEstimationContext context = {
 		.lower_to_upper = &storage[0],
-		.upper_to_lower = &storage[compression_info->compressed_rel->max_attr],
+		.upper_to_lower = &storage[compression_info->compressed_rel->max_attr + 1],
 	};
 
 	for (int uncompressed_attno = 1; uncompressed_attno <= compression_info->chunk_rel->max_attr;
