@@ -143,7 +143,14 @@ ts_stats_chunks(PG_FUNCTION_ARGS)
 
 		if (TS_STATS_CHUNK_METADATA_IS_IN_PROGRESS(state))
 		{
-			/* slot is being updated, mark it for retry */
+			/*
+			 * Slot is being updated, mark it for retry. Allocate the snapshot
+			 * buffers too: if the slot leaves in-progress during the retry pass,
+			 * the retry loop copies into slot_snap[0]/meta_snap[0], which would
+			 * write through NULL if only retry_map were allocated here.
+			 */
+			slot_snap = palloc(sizeof(TsStatsChunk));
+			meta_snap = palloc(sizeof(TsStatsChunkMetadata));
 			retry_map = palloc0(sizeof(bool) * seg->num_slots);
 			retry_map[slot_idx] = true;
 			n_retry_entries = 1;
