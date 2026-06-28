@@ -2278,7 +2278,9 @@ tsl_process_compress_table_add_column(Hypertable *ht, ColumnDef *orig_def)
 		/* don't add column if it already exists */
 		if (get_attnum(chunk->table_id, orig_def->colname) != InvalidAttrNumber)
 		{
-			return;
+			/* Skip just this chunk, but keep going so the remaining compressed
+			 * chunks still get the new column. */
+			continue;
 		}
 		ColumnDef *coldef = build_columndef_singlecolumn(orig_def->colname, coloid);
 		CompressionSettings *settings =
