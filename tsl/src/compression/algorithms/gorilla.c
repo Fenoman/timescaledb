@@ -879,6 +879,13 @@ gorilla_decompression_iterator_try_next_reverse_internal(GorillaDecompressionIte
 			iter->prev_xor_bits_used = num_xor_bits.val;
 			iter->prev_leading_zeroes =
 				bit_array_iter_next_rev(&iter->leading_zeros, BITS_PER_LEADING_ZEROS);
+			/*
+			 * Mirror the forward iterator: a crafted bit width > 64 would drive
+			 * out-of-range shifts in bit_array_iter_next_rev on the next step.
+			 */
+			CheckCompressedData(iter->prev_xor_bits_used <= 64);
+			CheckCompressedData(iter->prev_leading_zeroes <= 64);
+			CheckCompressedData(iter->prev_xor_bits_used + iter->prev_leading_zeroes <= 64);
 		}
 	}
 
