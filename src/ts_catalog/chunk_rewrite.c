@@ -285,9 +285,13 @@ ts_chunk_rewrite_cleanup(PG_FUNCTION_ARGS)
 				if (HeapTupleIsValid(tuple))
 				{
 					ownerid = ((Form_pg_class) GETSTRUCT(tuple))->relowner;
+					/*
+					 * Release only a valid tuple. A dropped relation makes
+					 * SearchSysCache1 return an invalid one (handled above by
+					 * leaving ownerid InvalidOid); releasing that would crash.
+					 */
+					ReleaseSysCache(tuple);
 				}
-
-				ReleaseSysCache(tuple);
 
 				/*
 				 * Only clean an entry if the user has the privileges of the owner of the relation.
