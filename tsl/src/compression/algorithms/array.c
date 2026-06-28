@@ -655,6 +655,17 @@ tsl_uuid_array_decompress_all(Datum compressed_array, Oid element_type, MemoryCo
 	validity_bitmap = validity_bits.data;
 	MemoryContextSwitchTo(old_context);
 
+	if (header->has_nulls && nulls_serialized != NULL)
+	{
+		/*
+		 * Mirror the UUID dictionary path (dictionary.c): a crafted validity
+		 * bitmap with more set bits than n_notnull would advance `position`
+		 * past the n_notnull validated values and read out of bounds below.
+		 */
+		CheckCompressedData(validity_bits.num_ones == n_notnull);
+		CheckCompressedData(validity_bits.num_elements == n_total);
+	}
+
 	/* Check the alignment of compressed_non_null_values */
 	if (((uintptr_t) compressed_non_null_values % 8) == 0)
 	{
