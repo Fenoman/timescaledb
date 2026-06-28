@@ -175,6 +175,11 @@ alter table test_settings set (timescaledb.compress,
     timescaledb.compress_orderby = 'x',
     timescaledb.compress_index = 'bloom(u,ts,u)');
 
+-- duplicate column that is not the last one (must error, not read uninitialized memory)
+alter table test_settings set (timescaledb.compress,
+    timescaledb.compress_orderby = 'x',
+    timescaledb.compress_index = 'bloom(u,u,ts)');
+
 -- duplicate blooms in different orders
 -- 2 cols
 alter table test_settings set (timescaledb.compress,

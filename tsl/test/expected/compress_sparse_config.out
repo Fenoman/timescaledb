@@ -195,6 +195,11 @@ alter table test_settings set (timescaledb.compress,
     timescaledb.compress_orderby = 'x',
     timescaledb.compress_index = 'bloom(u,ts,u)');
 ERROR:  duplicate column name ('u') in composite bloom index configuration: ('u','ts','u')
+-- duplicate column that is not the last one (must error, not read uninitialized memory)
+alter table test_settings set (timescaledb.compress,
+    timescaledb.compress_orderby = 'x',
+    timescaledb.compress_index = 'bloom(u,u,ts)');
+ERROR:  duplicate column name ('u') in composite bloom index configuration: ('u','u')
 -- duplicate blooms in different orders
 -- 2 cols
 alter table test_settings set (timescaledb.compress,
