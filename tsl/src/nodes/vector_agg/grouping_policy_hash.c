@@ -265,6 +265,8 @@ gp_hash_add_batch(GroupingPolicy *gp, DecompressContext *dcontext, TupleTableSlo
 	const size_t num_words = (nrows + 63) / 64;
 	if (num_words > policy->num_tmp_filter_words)
 	{
+		if (policy->tmp_filter != NULL)
+			pfree(policy->tmp_filter);
 		policy->tmp_filter = palloc(sizeof(*policy->tmp_filter) * (num_words * 2 + 1));
 		policy->num_tmp_filter_words = (num_words * 2 + 1);
 	}
