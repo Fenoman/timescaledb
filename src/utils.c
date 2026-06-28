@@ -2111,6 +2111,14 @@ ts_get_attr_expr(Relation rel, AttrNumber attno)
 	TupleConstr *constr = rel->rd_att->constr;
 	char *expr = NULL;
 
+	/*
+	 * constr is NULL when the relation has no defaults, generated columns or
+	 * constraints. There is no default expression to look up in that case, so
+	 * return NULL instead of dereferencing a NULL pointer in the loop below.
+	 */
+	if (constr == NULL)
+		return NULL;
+
 	for (int i = 0; i < constr->num_defval; i++)
 	{
 		if (constr->defval[i].adnum == attno)
