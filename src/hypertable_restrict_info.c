@@ -955,6 +955,12 @@ ts_hypertable_restrict_info_get_chunks(HypertableRestrictInfo *hri, Hypertable *
 																		time_dim->fd.id,
 																		LockTupleKeyShare,
 																		RowShareLock);
+				if (!slice)
+					ereport(ERROR,
+							errcode(ERRCODE_INTERNAL_ERROR),
+							errmsg("could not find time dimension slice for chunk %d",
+								   osm_chunk_id));
+
 				bool range_invalid =
 					ts_osm_chunk_range_is_invalid(slice->fd.range_start, slice->fd.range_end);
 
