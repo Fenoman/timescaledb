@@ -613,6 +613,13 @@ parse_sparse_index_config(JsonbParseState *parse_state, FuncCall *sparse_index_d
 				attnums_bitmap = bms_add_member(attnums_bitmap, bloom_config.columns[i].attnum);
 				if (bms_num_members(attnums_bitmap) <= i)
 				{
+					/*
+					 * Only columns[0..i] have been parsed so far; the rest of the
+					 * palloc'd (not palloc0'd) array is still uninitialized. Trim
+					 * num_columns so the error message below lists only the parsed
+					 * columns instead of reading uninitialized memory.
+					 */
+					bloom_config.num_columns = i + 1;
 					ereport(ERROR,
 							(errcode(ERRCODE_SYNTAX_ERROR),
 							 errmsg("duplicate column name ('%s') in composite bloom index "
