@@ -23,6 +23,10 @@ CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.hypertabl
 ERROR:  column "" does not exist
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.hypertable,tsdb.partition_column='foo');
 ERROR:  column "foo" does not exist
+-- An expression partition key has no column name; must error, not crash the backend
+CREATE TABLE t2(time timestamptz NOT NULL, device text, value float) PARTITION BY RANGE ((time)) WITH (tsdb.hypertable);
+ERROR:  cannot use an expression as the hypertable partitioning key
+HINT:  Use a plain column, or set "timescaledb.partition_column".
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.partition_column='time');
 ERROR:  timescaledb options requires hypertable option
 HINT:  Use "timescaledb.hypertable" to enable creating a hypertable.
