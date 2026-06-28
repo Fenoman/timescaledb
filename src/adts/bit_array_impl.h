@@ -314,13 +314,15 @@ bit_array_iter_next_rev(BitArrayIterator *iter, uint8 num_bits)
 	uint8 num_bits_from_previous_bucket;
 	uint64 value = 0;
 	uint64 bits_from_previous;
-	Assert(num_bits <= BITS_PER_BUCKET);
+	/* Runtime checks (not Assert) so corrupt data is rejected in release builds
+	 * too, mirroring the forward bit_array_iter_next. */
+	CheckCompressedData(num_bits <= BITS_PER_BUCKET);
 	if (num_bits == 0)
 	{
 		return 0;
 	}
 
-	Assert(iter->current_bucket >= 0);
+	CheckCompressedData(iter->current_bucket >= 0);
 
 	bits_remaining_in_current_bucket = iter->bits_used_in_current_bucket;
 	if (bits_remaining_in_current_bucket >= num_bits)
@@ -332,7 +334,7 @@ bit_array_iter_next_rev(BitArrayIterator *iter, uint8 num_bits)
 		return value;
 	}
 
-	Assert(iter->current_bucket - 1 >= 0);
+	CheckCompressedData(iter->current_bucket - 1 >= 0);
 
 	num_bits_from_previous_bucket = num_bits - bits_remaining_in_current_bucket;
 
