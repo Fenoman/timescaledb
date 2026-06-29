@@ -790,12 +790,24 @@ get_compressed_chunk_index(ResultRelInfo *resultRelInfo, const CompressionSettin
 			continue;
 		}
 
-		for (int j = 0; j < num_segmentby_columns - 1; j++)
+		for (int j = 0; j < num_segmentby_columns; j++)
 		{
-			AttrNumber attno = index_relation->rd_index->indkey.values[j];
-			const char *attname = get_attname(index_relation->rd_index->indrelid, attno, false);
+			const char *segmentby_column = ts_array_get_element_text(settings->fd.segmentby, j + 1);
+			bool found_segmentby = false;
 
-			if (!ts_array_is_member(settings->fd.segmentby, attname))
+			for (int k = 0; k < num_segmentby_columns; k++)
+			{
+				AttrNumber attno = index_relation->rd_index->indkey.values[k];
+				const char *attname = get_attname(index_relation->rd_index->indrelid, attno, false);
+
+				if (strcmp(attname, segmentby_column) == 0)
+				{
+					found_segmentby = true;
+					break;
+				}
+			}
+
+			if (!found_segmentby)
 			{
 				matches = false;
 				break;
