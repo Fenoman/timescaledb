@@ -471,11 +471,11 @@ dictionary_decompression_iterator_init(DictionaryDecompressionIterator *iter, co
 	for (uint32 i = 0; i < bitmap->num_distinct; i++)
 	{
 		DecompressResult res = array_decompression_iterator_try_next_forward(dictionary_iterator);
-		Assert(!res.is_null);
-		Assert(!res.is_done);
+		CheckCompressedData(!res.is_done);
+		CheckCompressedData(!res.is_null);
 		iter->values[i] = res.val;
 	}
-	Assert(array_decompression_iterator_try_next_forward(dictionary_iterator).is_done);
+	CheckCompressedData(array_decompression_iterator_try_next_forward(dictionary_iterator).is_done);
 }
 
 static ArrowArray *tsl_bool_dictionary_decompress_all(Datum compressed, Oid element_type,
@@ -897,7 +897,7 @@ dictionary_decompression_iterator_try_next_reverse(DecompressionIterator *iter_b
 		};
 	}
 
-	Assert(result.val < iter->compressed->num_distinct);
+	CheckCompressedData(result.val < iter->compressed->num_distinct);
 	return (DecompressResult){
 		.val = iter->values[result.val],
 		.is_null = false,

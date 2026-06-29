@@ -924,11 +924,13 @@ array_decompression_iterator_try_next_reverse(DecompressionIterator *base_iter)
 		};
 	}
 
-	Assert((int64) iter->data_offset - (int64) datum_size.val >= 0);
+	CheckCompressedData(datum_size.val <= iter->data_offset);
 
+	uint32 end_offset = iter->data_offset;
 	iter->data_offset -= datum_size.val;
 	start_pointer = iter->data + iter->data_offset;
 	val = bytes_to_datum_and_advance(iter->deserializer, &start_pointer);
+	CheckCompressedData(iter->data + end_offset == start_pointer);
 
 	return (DecompressResult){
 		.val = val,
