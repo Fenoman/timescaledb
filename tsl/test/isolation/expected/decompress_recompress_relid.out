@@ -1,0 +1,39 @@
+Parsed test spec with 3 sessions
+
+starting permutation: wp_before_lock_on s1_decompress s2_recompress wp_before_lock_off
+step wp_before_lock_on: SELECT debug_waitpoint_enable('decompress_chunk_impl_before_lock') IS NULL AS x;
+x
+-
+f
+
+step s1_decompress: SELECT count(*) FROM (SELECT decompress_chunk(c) FROM show_chunks('i8_relid_race') c) q;
+  SELECT count(*) FROM i8_relid_race;
+ <waiting ...>
+step s2_recompress: SELECT count(*) FROM (SELECT compress_chunk(c, recompress => true)
+    FROM show_chunks('i8_relid_race') c) q;
+
+count
+-----
+    1
+
+step wp_before_lock_off: SELECT count(*) AS n
+  FROM pg_locks
+  WHERE NOT granted AND locktype = 'advisory' AND mode = 'ShareLock';
+  SELECT debug_waitpoint_release('decompress_chunk_impl_before_lock') IS NULL AS x;
+
+n
+-
+1
+
+x
+-
+f
+
+step s1_decompress: <... completed>
+count
+-----
+    1
+
+count
+-----
+  100
