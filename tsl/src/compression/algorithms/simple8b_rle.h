@@ -987,12 +987,12 @@ simple8brle_decompression_iterator_init_forward(Simple8bRleDecompressionIterator
 	bit_array_iterator_init(&iter->selectors, &iter->selector_data);
 }
 
-static uint32
+static uint64
 simple8brle_decompression_iterator_max_elements(Simple8bRleDecompressionIterator *iter,
 												const Simple8bRleSerialized *compressed)
 {
 	BitArrayIterator selectors;
-	uint32 max_stored = 0;
+	uint64 max_stored = 0;
 	uint32 i;
 
 	Assert(compressed->num_blocks > 0);
@@ -1003,7 +1003,7 @@ simple8brle_decompression_iterator_max_elements(Simple8bRleDecompressionIterator
 		uint8 selector = bit_array_iter_next(&selectors, SIMPLE8B_BITS_PER_SELECTOR);
 		if (selector == 0)
 		{
-			elog(ERROR, "invalid selector 0");
+			CheckCompressedData(false);
 		}
 
 		if (simple8brle_selector_is_rle(selector) && iter->compressed_data)
@@ -1024,19 +1024,22 @@ static void
 simple8brle_decompression_iterator_init_reverse(Simple8bRleDecompressionIterator *iter,
 												Simple8bRleSerialized *compressed)
 {
-	int32 skipped_in_last;
 	simple8brle_decompression_iterator_init_common(iter, compressed);
 	bit_array_iterator_init_rev(&iter->selectors, &iter->selector_data);
-	skipped_in_last = simple8brle_decompression_iterator_max_elements(iter, compressed) -
-					  compressed->num_elements;
+	uint64 max_stored = simple8brle_decompression_iterator_max_elements(iter, compressed);
+	CheckCompressedData(max_stored >= compressed->num_elements);
+	uint64 skipped_in_last = max_stored - compressed->num_elements;
 
-	CheckCompressedData(skipped_in_last >= 0);
 	Assert(NULL != iter->compressed_data);
 
 	iter->current_block =
 		simple8brle_block_create(bit_array_iter_next_rev(&iter->selectors,
 														 SIMPLE8B_BITS_PER_SELECTOR),
 								 iter->compressed_data[compressed->num_blocks - 1]);
+	CheckCompressedData(iter->current_block.selector != 0);
+	CheckCompressedData(iter->current_block.num_elements_compressed <=
+						GLOBAL_MAX_ROWS_PER_COMPRESSION);
+	CheckCompressedData(skipped_in_last < iter->current_block.num_elements_compressed);
 	iter->current_in_compressed_pos =
 		iter->current_block.num_elements_compressed - 1 - skipped_in_last;
 	iter->current_compressed_pos = compressed->num_blocks - 2;
@@ -1159,7 +1162,7 @@ simple8brle_block_get_element(Simple8bRleBlock block, uint32 position_in_value)
 		/* decode rle-encoded integers */
 		uint64 repeated_value = simple8brle_rledata_value(block.data);
 		CheckCompressedData(simple8brle_rledata_repeatcount(block.data) > 0);
-		Assert(simple8brle_rledata_repeatcount(block.data) > position_in_value);
+		CheckCompressedData(simple8brle_rledata_repeatcount(block.data) > position_in_value);
 		return repeated_value;
 	}
 	else
@@ -1167,7 +1170,7 @@ simple8brle_block_get_element(Simple8bRleBlock block, uint32 position_in_value)
 		uint64 compressed_value = block.data;
 		uint32 bits_per_val = SIMPLE8B_BIT_LENGTH[block.selector];
 		/* decode bit-packed integers*/
-		Assert(position_in_value < SIMPLE8B_NUM_ELEMENTS[block.selector]);
+		CheckCompressedData(position_in_value < SIMPLE8B_NUM_ELEMENTS[block.selector]);
 		compressed_value >>= bits_per_val * position_in_value;
 		compressed_value &= simple8brle_selector_get_bitmask(block.selector);
 		return compressed_value;
