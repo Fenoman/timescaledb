@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include "compat_config.h"
+
 #include <postgres.h>
 
 #include <commands/defrem.h>
