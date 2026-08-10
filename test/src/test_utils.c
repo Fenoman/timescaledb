@@ -8,7 +8,9 @@
 #include <postgres.h>
 
 #include <compat/compat.h>
+#include <commands/explain.h>
 #include <commands/dbcommands.h>
+#include <executor/executor.h>
 #if PG19_GE
 #include <catalog/pg_database.h>
 #endif
@@ -29,6 +31,59 @@
 TS_FUNCTION_INFO_V1(ts_test_error_injection);
 TS_FUNCTION_INFO_V1(ts_debug_shippable_error_after_n_rows);
 TS_FUNCTION_INFO_V1(ts_debug_shippable_fatal_after_n_rows);
+
+/*
+ * Reproduce extensions which inspect a plan immediately after ExecutorStart
+ * has initialized it. In particular, ModifyHypertable defers creation of its
+ * ChunkTupleRouting state until the first executor call, so an early EXPLAIN
+ * must tolerate a NULL state->ctr.
+ */
+static ExecutorStart_hook_type previous_executor_start_hook = NULL;
+static bool explain_in_executor_start_enabled = false;
+
+static void
+test_explain_in_executor_start(QueryDesc *query_desc, int eflags)
+{
+	if (previous_executor_start_hook)
+	{
+		previous_executor_start_hook(query_desc, eflags);
+	}
+	else
+	{
+		standard_ExecutorStart(query_desc, eflags);
+	}
+
+	if (explain_in_executor_start_enabled && query_desc->operation == CMD_INSERT)
+	{
+		ExplainState *es = NewExplainState();
+		ExplainPrintPlan(es, query_desc);
+	}
+}
+
+TS_TEST_FN(ts_test_enable_explain_in_executor_start)
+{
+	if (!explain_in_executor_start_enabled)
+	{
+		previous_executor_start_hook = ExecutorStart_hook;
+		ExecutorStart_hook = test_explain_in_executor_start;
+		explain_in_executor_start_enabled = true;
+	}
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_disable_explain_in_executor_start)
+{
+	if (explain_in_executor_start_enabled)
+	{
+		Assert(ExecutorStart_hook == test_explain_in_executor_start);
+		ExecutorStart_hook = previous_executor_start_hook;
+		previous_executor_start_hook = NULL;
+		explain_in_executor_start_enabled = false;
+	}
+
+	PG_RETURN_VOID();
+}
 
 /*
  * Test assertion macros.
