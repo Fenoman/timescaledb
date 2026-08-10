@@ -26,6 +26,7 @@
 
 #include "debug_point.h"
 #include "extension_constants.h"
+#include "nodes/modify_hypertable.h"
 #include "utils.h"
 
 TS_FUNCTION_INFO_V1(ts_test_error_injection);
@@ -80,6 +81,95 @@ TS_TEST_FN(ts_test_disable_explain_in_executor_start)
 		ExecutorStart_hook = previous_executor_start_hook;
 		previous_executor_start_hook = NULL;
 		explain_in_executor_start_enabled = false;
+	}
+
+	PG_RETURN_VOID();
+}
+
+/*
+ * Reproduce extensions which inspect an executed plan more than once before
+ * ExecutorEnd. ModifyHypertable's EXPLAIN callback must leave both its saved
+ * targetlists and its accumulated counters unchanged by the second poll.
+ */
+static ExecutorRun_hook_type previous_executor_run_hook = NULL;
+static bool explain_in_executor_run_enabled = false;
+
+static void
+test_explain_in_executor_run(QueryDesc *query_desc, ScanDirection direction, uint64 count,
+							 bool execute_once)
+{
+	if (previous_executor_run_hook)
+	{
+		previous_executor_run_hook(query_desc, direction, count, execute_once);
+	}
+	else
+	{
+		standard_ExecutorRun(query_desc, direction, count, execute_once);
+	}
+
+	if (explain_in_executor_run_enabled &&
+		(query_desc->operation == CMD_DELETE || query_desc->operation == CMD_INSERT))
+	{
+		PlanState *planstate = query_desc->planstate;
+		if (!ts_is_modify_hypertable_plan(planstate->plan))
+		{
+			elog(ERROR, "expected a ModifyHypertable plan");
+		}
+
+		ModifyHypertableState *state = (ModifyHypertableState *) planstate;
+		if (query_desc->operation == CMD_INSERT)
+		{
+			Assert(state->ctr != NULL && state->ctr->counters != NULL);
+			state->ctr->counters->batches_scanned = 1;
+		}
+
+		ExplainState *es = NewExplainState();
+		es->verbose = true;
+		ExplainPrintPlan(es, query_desc);
+		List *saved_tlist = state->explain_saved_tlist;
+		List *saved_custom_scan_tlist = state->explain_saved_custom_scan_tlist;
+		if (query_desc->operation == CMD_DELETE && saved_tlist == NULL)
+		{
+			elog(ERROR, "runtime EXPLAIN did not save a ModifyHypertable targetlist");
+		}
+		ExplainPrintPlan(es, query_desc);
+
+		if (query_desc->operation == CMD_DELETE &&
+			(state->explain_saved_tlist != saved_tlist ||
+			 (saved_custom_scan_tlist &&
+			  state->explain_saved_custom_scan_tlist != saved_custom_scan_tlist)))
+		{
+			elog(ERROR, "repeated runtime EXPLAIN lost the ModifyHypertable targetlist");
+		}
+		if (query_desc->operation == CMD_INSERT && state->batches_scanned != 1)
+		{
+			elog(ERROR,
+				 "repeated runtime EXPLAIN double-counted counters: expected 1, got %lld",
+				 (long long) state->batches_scanned);
+		}
+	}
+}
+
+TS_TEST_FN(ts_test_enable_explain_in_executor_run)
+{
+	if (!explain_in_executor_run_enabled)
+	{
+		previous_executor_run_hook = ExecutorRun_hook;
+		ExecutorRun_hook = test_explain_in_executor_run;
+		explain_in_executor_run_enabled = true;
+	}
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_disable_explain_in_executor_run)
+{
+	if (explain_in_executor_run_enabled)
+	{
+		Assert(ExecutorRun_hook == test_explain_in_executor_run);
+		ExecutorRun_hook = previous_executor_run_hook;
+		previous_executor_run_hook = NULL;
+		explain_in_executor_run_enabled = false;
 	}
 
 	PG_RETURN_VOID();

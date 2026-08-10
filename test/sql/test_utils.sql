@@ -89,3 +89,22 @@ DO $$ BEGIN PERFORM test.enable_explain_in_executor_start(); END $$;
 INSERT INTO early_explain_insert VALUES ('2026-01-01', 1);
 DO $$ BEGIN PERFORM test.disable_explain_in_executor_start(); END $$;
 -- End early ExecutorStart EXPLAIN test.
+
+-- An extension may inspect an executed plan repeatedly before ExecutorEnd.
+-- Repeated EXPLAIN must preserve saved targetlists and must not double-count
+-- shared ChunkTupleRouting counters.
+CREATE OR REPLACE FUNCTION test.enable_explain_in_executor_run() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_enable_explain_in_executor_run' LANGUAGE C VOLATILE;
+CREATE OR REPLACE FUNCTION test.disable_explain_in_executor_run() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_disable_explain_in_executor_run' LANGUAGE C VOLATILE;
+
+CREATE TABLE runtime_explain (time timestamptz NOT NULL, value integer);
+DO $$ BEGIN PERFORM create_hypertable('runtime_explain', 'time'); END $$;
+INSERT INTO runtime_explain VALUES ('2021-01-01', 1), ('2022-01-01', 2);
+DO $$ BEGIN PERFORM test.enable_explain_in_executor_run(); END $$;
+\set ON_ERROR_STOP 0
+DELETE FROM runtime_explain WHERE time > '2020-01-01'::text::timestamptz;
+INSERT INTO runtime_explain VALUES ('2021-01-01', 3);
+DO $$ BEGIN PERFORM test.disable_explain_in_executor_run(); END $$;
+\set ON_ERROR_STOP 1
+-- End runtime ExecutorRun EXPLAIN test.
