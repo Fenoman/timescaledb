@@ -1,0 +1,1 @@
+Fix wrong results with IS NULL and minmax pushdown.
