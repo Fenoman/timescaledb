@@ -92,7 +92,7 @@ Expected: all selected parent-commit tests pass. Save command output in the SDD 
 
 No commit: build artifacts and SDD reports remain ignored.
 
-### Task 1.5: Remove rebased expected-output trailing whitespace
+### Task 2: Remove rebased expected-output trailing whitespace
 
 **Files:**
 - Modify: tsl/test/isolation/expected/decompress_recompress_relid.out.
@@ -136,7 +136,7 @@ git add tsl/test/isolation/expected/decompress_recompress_relid.out
 git commit -m "Tests: remove trailing expected-output whitespace" -m "Remove the accidental final blank line introduced by the rebase."
 ~~~
 
-### Task 2: Make the ColumnarScan namespace collision-proof
+### Task 3: Make the ColumnarScan namespace collision-proof
 
 **Files:**
 - Create: tsl/test/t/006_citus_columnar_customscan.pl.
@@ -259,7 +259,7 @@ git add tsl/src/nodes/columnar_scan/planner.c \
 git commit -m "Fix: namespace Timescale columnar custom scan"
 ~~~
 
-### Task 3: Prevent lossy min/max pushdown beneath NullTest
+### Task 4: Prevent lossy min/max pushdown beneath NullTest
 
 **Files:**
 - Create: .unreleased/fix_isnull_minmax_pushdown.
@@ -340,7 +340,7 @@ git add .unreleased/fix_isnull_minmax_pushdown \
 git commit -m "Fix: prevent lossy minmax pushdown beneath NullTest"
 ~~~
 
-### Task 4: Make runtime ModifyHypertable EXPLAIN repeatable
+### Task 5: Make runtime ModifyHypertable EXPLAIN repeatable
 
 **Files:**
 - Modify: src/nodes/modify_hypertable.h and src/nodes/modify_hypertable.c.
@@ -406,7 +406,7 @@ git add src/nodes/modify_hypertable.h src/nodes/modify_hypertable.c \
 git commit -m "Fix: make ModifyHypertable EXPLAIN idempotent"
 ~~~
 
-### Task 5: Correct the compressed SkipScan offset estimate
+### Task 6: Correct the compressed SkipScan offset estimate
 
 **Files:**
 - Modify: tsl/src/nodes/skip_scan/planner.c and tsl/test/sql/plan_skip_scan.sql.in.
@@ -476,7 +476,7 @@ git add tsl/src/nodes/skip_scan/planner.c tsl/test/sql/plan_skip_scan.sql.in \
 git commit -m "Fix: correct compressed SkipScan offset cost"
 ~~~
 
-### Task 6: Bypass disabled CAGG rewrite traversal
+### Task 7: Bypass disabled CAGG rewrite traversal
 
 **Files:**
 - Modify: tsl/src/continuous_aggs/rewrite_with_caggs.c and tsl/test/sql/cagg_rewrites.sql.in.
@@ -553,7 +553,7 @@ git commit -m "Perf: skip disabled CAGG rewrite traversal"
 
 If the gate fails, revert this task's uncommitted changes, record both medians in the SDD ledger, and make no source commit.
 
-### Task 7: Qualify ordinary database-wide VACUUM short-circuit
+### Task 8: Qualify ordinary database-wide VACUUM short-circuit
 
 **Files:**
 - Modify only after admission: src/process_utility.c, test/sql/vacuum.sql, test/expected/vacuum.out.
@@ -596,7 +596,7 @@ git add src/process_utility.c test/sql/vacuum.sql test/expected/vacuum.out
 git commit -m "Perf: bypass Timescale vacuum scan without hypertables"
 ~~~
 
-### Task 8: Qualify planner relation-classification reuse
+### Task 9: Qualify planner relation-classification reuse
 
 **Files:**
 - Modify only after admission: src/planner/planner.c, src/planner/planner.h, test/sql/baserel_cache.sql, test/expected/baserel_cache.out.
@@ -640,7 +640,7 @@ git commit -m "Perf: reuse planner relation classification"
 
 If either gate fails, revert task-local edits, record the evidence, and make no source commit.
 
-### Task 9: Record research-only dispositions for compression settings and sort cost
+### Task 10: Record research-only dispositions for compression settings and sort cost
 
 **Files:**
 - Create: SDD workspace benchmark records only.
@@ -663,14 +663,14 @@ For 10, 100, and 1,000 compressed chunks, capture EXPLAIN FORMAT JSON, selected 
 
 Record evidence and disposition in the SDD ledger. This plan does not alter bulk compression-settings APIs, sort cost, or first/last aggregate grouping.
 
-### Task 10: Run final multi-version and Citus validation
+### Task 11: Run final multi-version and Citus validation
 
 **Files:**
 - Modify: none unless an accepted task's test exposes a defect in that task.
 - Test: available installcheck, isolation, TAP, and PG16 Citus gate.
 
 **Interfaces:**
-- Consumes: accepted commits from Tasks 2-8 and the fresh Citus build.
+- Consumes: accepted commits from Tasks 2-9 and the fresh Citus build.
 - Produces: exact pass/fail/blocked evidence for final review.
 
 - [ ] **Step 1: Configure PG17 and PG18 Debug builds**
@@ -706,7 +706,7 @@ Expected: every available target passes; missing TAP prerequisites are named exa
 
 - [ ] **Step 3: Re-run the PG16 Citus gate**
 
-Re-run Task 2 Step 6 with fresh CITUS_COLUMNAR_LIBDIR. Preserve serial/parallel equality and a plan that names TimescaleDBColumnarScan.
+Re-run Task 3 Step 6 with fresh CITUS_COLUMNAR_LIBDIR. Preserve serial/parallel equality and a plan that names TimescaleDBColumnarScan.
 
 - [ ] **Step 4: Final hygiene and branch review**
 
