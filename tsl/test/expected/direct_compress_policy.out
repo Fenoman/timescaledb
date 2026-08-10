@@ -161,9 +161,9 @@ INSERT INTO metrics4 SELECT '2025-01-01'::timestamptz + (i || ' minute')::interv
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, SUMMARY OFF, TIMING OFF) SELECT * FROM metrics4;
 --- QUERY PLAN ---
  Append (actual rows=3001.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _hyper_4_1_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_1_chunk (actual rows=960.00 loops=1)
          ->  Seq Scan on _hyper_4_1_chunk_compressed (actual rows=1.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _hyper_4_2_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_2_chunk (actual rows=2041.00 loops=1)
          ->  Seq Scan on _hyper_4_2_chunk_compressed (actual rows=3.00 loops=1)
 
 ROLLBACK;

@@ -116,28 +116,28 @@ select distinct(attname) from compressedcols where relname = 'sparse' order by 1
 -- show plan
 explain (buffers off, costs off) select * from sparse where value = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: (value = '1'::double precision)
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_value, TEST-HASHES::bigint[])
 
 explain (buffers off, costs off) select * from sparse where o = 1 and big2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: ((o = 1) AND (big2 = 1))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_9774_o_big2, TEST-HASHES::bigint[]) AND (_ts_meta_min_1 <= 1) AND (_ts_meta_max_1 >= 1) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, TEST-HASHES::bigint[]))
 
 explain (buffers off, costs off) select * from sparse where num = 1 and hello = md5('1')::bytea;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: ((num = '1'::numeric) AND (hello = '\x6334636134323338613062393233383230646363353039613666373538343962'::bytea))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_c250_num_hello, TEST-HASHES::bigint[])
 
 explain (buffers off, costs off) select * from sparse where small1 = 1 and small2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: ((small1 = 1) AND (small2 = 1))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_cab4_small1_small2, TEST-HASHES::bigint[])
@@ -146,7 +146,7 @@ explain (buffers off, costs off) select * from sparse where num = 1 and nowts = 
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on sparse
    Chunks excluded during startup: 0
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          Filter: (num = '1'::numeric)
          Vectorized Filter: (nowts = now())
          ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -154,21 +154,21 @@ explain (buffers off, costs off) select * from sparse where num = 1 and nowts = 
 
 explain (buffers off, costs off) select * from sparse where o in (1,2) and big2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: ((o = ANY ('{1,2}'::bigint[])) AND (big2 = 1))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, TEST-HASHES::bigint[]) AND (((_ts_meta_min_1 <= '1'::bigint) AND (_ts_meta_max_1 >= '1'::bigint)) OR ((_ts_meta_min_1 <= '2'::bigint) AND (_ts_meta_max_1 >= '2'::bigint))))
 
 explain (buffers off, costs off) select * from sparse where o = 1 and big2 in (1,2);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: ((big2 = ANY ('{1,2}'::bigint[])) AND (o = 1))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, TEST-HASHES::bigint[]) AND (_ts_meta_min_1 <= 1) AND (_ts_meta_max_1 >= 1))
 
 explain (buffers off, costs off) select * from sparse where o in (1,2) and big2 in (1,2);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Vectorized Filter: ((o = ANY ('{1,2}'::bigint[])) AND (big2 = ANY ('{1,2}'::bigint[])))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, TEST-HASHES::bigint[]) AND (((_ts_meta_min_1 <= '1'::bigint) AND (_ts_meta_max_1 >= '1'::bigint)) OR ((_ts_meta_min_1 <= '2'::bigint) AND (_ts_meta_max_1 >= '2'::bigint))))
@@ -176,7 +176,7 @@ explain (buffers off, costs off) select * from sparse where o in (1,2) and big2 
 -- segmentby = bloom
 explain (buffers off, costs off) select * from sparse where big1 = sby and value = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: (big1 = sby)
    Vectorized Filter: (value = '1'::double precision)
    ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -184,14 +184,14 @@ explain (buffers off, costs off) select * from sparse where big1 = sby and value
 
 explain (buffers off, costs off) select * from sparse where o = sby and big2 = sby;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: ((o = sby) AND (sby = big2))
    ->  Seq Scan on _hyper_1_1_chunk_compressed
          Filter: ((_ts_meta_min_1 <= sby) AND (_ts_meta_max_1 >= sby) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_9774_o_big2, ARRAY[_timescaledb_functions.bloom1_hash(ROW(sby, sby))]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, ARRAY[_timescaledb_functions.bloom1_hash(sby)]))
 
 explain (buffers off, costs off) select * from sparse where o = 1 and big2 = sby;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: (big2 = sby)
    Vectorized Filter: (o = 1)
    ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -199,7 +199,7 @@ explain (buffers off, costs off) select * from sparse where o = 1 and big2 = sby
 
 explain (buffers off, costs off) select * from sparse where o = sby and big2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: (o = sby)
    Vectorized Filter: (big2 = 1)
    ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -347,28 +347,28 @@ select distinct(attname) from compressedcols where relname = 'sparse_sister' ord
 -- show plan
 explain (buffers off, costs off) select * from sparse_sister where value = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Vectorized Filter: (value = '1'::double precision)
    ->  Seq Scan on _hyper_2_2_chunk_compressed
          Filter: ((_ts_meta_v2_min_value <= '1'::double precision) AND (_ts_meta_v2_max_value >= '1'::double precision))
 
 explain (buffers off, costs off) select * from sparse_sister where o = 1 and big2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Vectorized Filter: ((o = 1) AND (big2 = 1))
    ->  Seq Scan on _hyper_2_2_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_9774_o_big2, TEST-HASHES::bigint[]) AND (_ts_meta_min_1 <= 1) AND (_ts_meta_max_1 >= 1) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, TEST-HASHES::bigint[]))
 
 explain (buffers off, costs off) select * from sparse_sister where num = 1 and hello = md5('1')::bytea;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Filter: ((num = '1'::numeric) AND (hello = '\x6334636134323338613062393233383230646363353039613666373538343962'::bytea))
    ->  Seq Scan on _hyper_2_2_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_c250_num_hello, TEST-HASHES::bigint[]) AND (_ts_meta_v2_min_num <= '1'::numeric) AND (_ts_meta_v2_max_num >= '1'::numeric) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_hello, TEST-HASHES::bigint[]))
 
 explain (buffers off, costs off) select * from sparse_sister where small1 = 1 and small2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Vectorized Filter: ((small1 = 1) AND (small2 = 1))
    ->  Seq Scan on _hyper_2_2_chunk_compressed
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_cab4_small1_small2, TEST-HASHES::bigint[]) AND (_ts_meta_v2_min_small1 <= 1) AND (_ts_meta_v2_max_small1 >= 1) AND (_ts_meta_v2_min_small2 <= 1) AND (_ts_meta_v2_max_small2 >= 1))
@@ -377,7 +377,7 @@ explain (buffers off, costs off) select * from sparse_sister where num = 1 and n
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on sparse_sister
    Chunks excluded during startup: 0
-   ->  Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
          Filter: (num = '1'::numeric)
          Vectorized Filter: (nowts = now())
          ->  Seq Scan on _hyper_2_2_chunk_compressed
@@ -386,7 +386,7 @@ explain (buffers off, costs off) select * from sparse_sister where num = 1 and n
 -- segmentby = bloom
 explain (buffers off, costs off) select * from sparse_sister where big1 = sby and value = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Filter: (big1 = sby)
    Vectorized Filter: (value = '1'::double precision)
    ->  Seq Scan on _hyper_2_2_chunk_compressed
@@ -394,14 +394,14 @@ explain (buffers off, costs off) select * from sparse_sister where big1 = sby an
 
 explain (buffers off, costs off) select * from sparse_sister where o = sby and big2 = sby;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Filter: ((o = sby) AND (sby = big2))
    ->  Seq Scan on _hyper_2_2_chunk_compressed
          Filter: ((_ts_meta_min_1 <= sby) AND (_ts_meta_max_1 >= sby) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_9774_o_big2, ARRAY[_timescaledb_functions.bloom1_hash(ROW(sby, sby))]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_big2, ARRAY[_timescaledb_functions.bloom1_hash(sby)]))
 
 explain (buffers off, costs off) select * from sparse_sister where o = 1 and big2 = sby;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Filter: (big2 = sby)
    Vectorized Filter: (o = 1)
    ->  Seq Scan on _hyper_2_2_chunk_compressed
@@ -409,7 +409,7 @@ explain (buffers off, costs off) select * from sparse_sister where o = 1 and big
 
 explain (buffers off, costs off) select * from sparse_sister where o = sby and big2 = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    Filter: (o = sby)
    Vectorized Filter: (big2 = 1)
    ->  Seq Scan on _hyper_2_2_chunk_compressed
@@ -957,7 +957,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.c
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[])
@@ -984,7 +984,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=48.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.b
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=48.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=48.00 loops=1)
                Vectorized Filter: ((a = 1) AND (c = 2))
                Rows Removed by Filter: 1552
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=2.00 loops=1)
@@ -1010,7 +1010,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=96.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.a
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=96.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=96.00 loops=1)
                Vectorized Filter: ((b = 1) AND (c = 2))
                Rows Removed by Filter: 1504
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=2.00 loops=1)
@@ -1077,7 +1077,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.c
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[])
@@ -1085,14 +1085,14 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_7_7_chunk.ts, _hyper_7_7_chunk.c
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_7_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_7_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 2400
                ->  Seq Scan on _hyper_7_7_chunk_compressed (actual rows=3.00 loops=1)
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_7_8_chunk.ts, _hyper_7_8_chunk.c
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_8_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_8_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 900
                ->  Seq Scan on _hyper_7_8_chunk_compressed (actual rows=1.00 loops=1)
@@ -1106,14 +1106,14 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=48.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.b
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=48.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=48.00 loops=1)
                Vectorized Filter: ((a = 1) AND (c = 2))
                Rows Removed by Filter: 1552
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=2.00 loops=1)
    ->  Sort (actual rows=72.00 loops=1)
          Sort Key: _hyper_7_7_chunk.ts, _hyper_7_7_chunk.b
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_7_chunk (actual rows=72.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_7_chunk (actual rows=72.00 loops=1)
                Vectorized Filter: ((a = 1) AND (c = 2))
                Rows Removed by Filter: 2328
                ->  Seq Scan on _hyper_7_7_chunk_compressed (actual rows=3.00 loops=1)
@@ -1121,7 +1121,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=27.00 loops=1)
          Sort Key: _hyper_7_8_chunk.ts, _hyper_7_8_chunk.b
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_8_chunk (actual rows=27.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_8_chunk (actual rows=27.00 loops=1)
                Vectorized Filter: ((a = 1) AND (c = 2))
                Rows Removed by Filter: 873
                ->  Seq Scan on _hyper_7_8_chunk_compressed (actual rows=1.00 loops=1)
@@ -1135,21 +1135,21 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=96.00 loops=1)
          Sort Key: _hyper_7_6_chunk.ts, _hyper_7_6_chunk.a
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_6_chunk (actual rows=96.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_6_chunk (actual rows=96.00 loops=1)
                Vectorized Filter: ((b = 1) AND (c = 2))
                Rows Removed by Filter: 1504
                ->  Seq Scan on _hyper_7_6_chunk_compressed (actual rows=2.00 loops=1)
    ->  Sort (actual rows=144.00 loops=1)
          Sort Key: _hyper_7_7_chunk.ts, _hyper_7_7_chunk.a
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_7_chunk (actual rows=144.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_7_chunk (actual rows=144.00 loops=1)
                Vectorized Filter: ((b = 1) AND (c = 2))
                Rows Removed by Filter: 2256
                ->  Seq Scan on _hyper_7_7_chunk_compressed (actual rows=3.00 loops=1)
    ->  Sort (actual rows=54.00 loops=1)
          Sort Key: _hyper_7_8_chunk.ts, _hyper_7_8_chunk.a
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_7_8_chunk (actual rows=54.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_8_chunk (actual rows=54.00 loops=1)
                Vectorized Filter: ((b = 1) AND (c = 2))
                Rows Removed by Filter: 846
                ->  Seq Scan on _hyper_7_8_chunk_compressed (actual rows=1.00 loops=1)
@@ -1191,14 +1191,14 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_8_9_chunk.ts, _hyper_8_9_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_8_9_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_9_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 1600
                ->  Seq Scan on _hyper_8_9_chunk_compressed (actual rows=2.00 loops=1)
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_8_10_chunk.ts, _hyper_8_10_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_8_10_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_10_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 2400
                ->  Seq Scan on _hyper_8_10_chunk_compressed (actual rows=3.00 loops=1)
@@ -1235,21 +1235,21 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_8_9_chunk.ts, _hyper_8_9_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_8_9_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_9_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 1600
                ->  Seq Scan on _hyper_8_9_chunk_compressed (actual rows=2.00 loops=1)
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_8_10_chunk.ts, _hyper_8_10_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_8_10_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_10_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 2400
                ->  Seq Scan on _hyper_8_10_chunk_compressed (actual rows=3.00 loops=1)
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_8_11_chunk.ts, _hyper_8_11_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_8_11_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_11_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_8_11_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_b, TEST-HASHES::bigint[]))
@@ -1294,7 +1294,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_9_12_chunk.ts, _hyper_9_12_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_9_12_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_12_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_9_12_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_b, TEST-HASHES::bigint[]))
@@ -1302,7 +1302,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_9_13_chunk.ts, _hyper_9_13_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_9_13_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_13_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_9_13_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_b, TEST-HASHES::bigint[]))
@@ -1339,7 +1339,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_9_12_chunk.ts, _hyper_9_12_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_9_12_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_12_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_9_12_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_b, TEST-HASHES::bigint[]))
@@ -1347,7 +1347,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_9_13_chunk.ts, _hyper_9_13_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_9_13_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_13_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                ->  Seq Scan on _hyper_9_13_chunk_compressed (actual rows=0.00 loops=1)
                      Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_b, TEST-HASHES::bigint[]))
@@ -1355,7 +1355,7 @@ ORDER BY 1,2,3,4;
    ->  Sort (actual rows=0.00 loops=1)
          Sort Key: _hyper_9_14_chunk.ts, _hyper_9_14_chunk.seg
          Sort Method: quicksort 
-         ->  Custom Scan (ColumnarScan) on _hyper_9_14_chunk (actual rows=0.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_14_chunk (actual rows=0.00 loops=1)
                Vectorized Filter: ((a = 1) AND (b = 2))
                Rows Removed by Filter: 900
                ->  Seq Scan on _hyper_9_14_chunk_compressed (actual rows=1.00 loops=1)
@@ -1386,7 +1386,7 @@ vacuum full analyze hash_pushdown_test;
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=1.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=1.00 loops=1)
    Vectorized Filter: (a = 1)
    Rows Removed by Filter: 999
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=1.00 loops=1)
@@ -1397,7 +1397,7 @@ select * from hash_pushdown_test where a = 1;
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a = 1 and b = 2;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
    Vectorized Filter: ((a = 1) AND (b = 2))
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=0.00 loops=1)
          Filter: (_timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_7035_a_b, TEST-HASHES::bigint[]) AND _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_a, TEST-HASHES::bigint[]))
@@ -1407,7 +1407,7 @@ select * from hash_pushdown_test where a = 1 and b = 2;
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a = any(array[1,2,3]);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=3.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=3.00 loops=1)
    Vectorized Filter: (a = ANY ('{1,2,3}'::integer[]))
    Rows Removed by Filter: 997
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=1.00 loops=1)
@@ -1417,7 +1417,7 @@ select * from hash_pushdown_test where a = any(array[1,2,3]);
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a IN (1,2,3);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=3.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=3.00 loops=1)
    Vectorized Filter: (a = ANY ('{1,2,3}'::integer[]))
    Rows Removed by Filter: 997
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=1.00 loops=1)
@@ -1428,7 +1428,7 @@ select * from hash_pushdown_test where a IN (1,2,3);
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a = any(array[1,2,3]) and b = any(array[4,5,6]);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
    Vectorized Filter: ((a = ANY ('{1,2,3}'::integer[])) AND (b = ANY ('{4,5,6}'::integer[])))
    Rows Removed by Filter: 1000
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=1.00 loops=1)
@@ -1438,7 +1438,7 @@ select * from hash_pushdown_test where a = any(array[1,2,3]) and b = any(array[4
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 select * from hash_pushdown_test where a IN (1,2,3) and b IN (4,5,6);
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_10_15_chunk (actual rows=0.00 loops=1)
    Vectorized Filter: ((a = ANY ('{1,2,3}'::integer[])) AND (b = ANY ('{4,5,6}'::integer[])))
    Rows Removed by Filter: 1000
    ->  Seq Scan on _hyper_10_15_chunk_compressed (actual rows=1.00 loops=1)

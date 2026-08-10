@@ -2560,15 +2560,15 @@ EXPLAIN (buffers off, costs off) SELECT * FROM test_partials ORDER BY time;
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on test_partials
    Order: test_partials."time"
-   ->  Custom Scan (ColumnarScan) on _hyper_18_35_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_35_chunk
          ->  Sort
                Sort Key: _hyper_18_35_chunk_compressed._ts_meta_v2_first_time, _hyper_18_35_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_35_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_18_36_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_36_chunk
          ->  Sort
                Sort Key: _hyper_18_36_chunk_compressed._ts_meta_v2_first_time, _hyper_18_36_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_36_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_18_37_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_37_chunk
          ->  Sort
                Sort Key: _hyper_18_37_chunk_compressed._ts_meta_v2_first_time, _hyper_18_37_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_37_chunk_compressed
@@ -2600,13 +2600,13 @@ EXPLAIN (buffers off, costs off) DELETE FROM test_partials WHERE time >= ALL(SEL
                      SubPlan 1
                        ->  Materialize
                              ->  Append
-                                   ->  Custom Scan (ColumnarScan) on _hyper_18_35_chunk
+                                   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_35_chunk
                                          ->  Seq Scan on _hyper_18_35_chunk_compressed
                                    ->  Seq Scan on _hyper_18_35_chunk
-                                   ->  Custom Scan (ColumnarScan) on _hyper_18_36_chunk
+                                   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_36_chunk
                                          ->  Seq Scan on _hyper_18_36_chunk_compressed
                                    ->  Seq Scan on _hyper_18_36_chunk
-                                   ->  Custom Scan (ColumnarScan) on _hyper_18_37_chunk
+                                   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_37_chunk
                                          ->  Seq Scan on _hyper_18_37_chunk_compressed
                                    ->  Seq Scan on _hyper_18_37_chunk
                ->  Seq Scan on _hyper_18_36_chunk test_partials_2
@@ -2623,7 +2623,7 @@ EXPLAIN (buffers off, costs off) SELECT * FROM test_partials ORDER BY time;
    Order: test_partials."time"
    ->  Merge Append
          Sort Key: test_partials."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_18_35_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_35_chunk
                ->  Sort
                      Sort Key: _hyper_18_35_chunk_compressed._ts_meta_v2_first_time, _hyper_18_35_chunk_compressed._ts_meta_v2_last_time
                      ->  Seq Scan on _hyper_18_35_chunk_compressed
@@ -2632,14 +2632,14 @@ EXPLAIN (buffers off, costs off) SELECT * FROM test_partials ORDER BY time;
          Sort Key: test_partials."time"
          ->  Sort
                Sort Key: _hyper_18_36_chunk."time"
-               ->  Custom Scan (ColumnarScan) on _hyper_18_36_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_36_chunk
                      ->  Seq Scan on _hyper_18_36_chunk_compressed
          ->  Index Scan Backward using _hyper_18_36_chunk_test_partials_time_idx on _hyper_18_36_chunk
    ->  Merge Append
          Sort Key: test_partials."time"
          ->  Sort
                Sort Key: _hyper_18_37_chunk."time"
-               ->  Custom Scan (ColumnarScan) on _hyper_18_37_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_37_chunk
                      ->  Seq Scan on _hyper_18_37_chunk_compressed
          ->  Index Scan Backward using _hyper_18_37_chunk_test_partials_time_idx on _hyper_18_37_chunk
 
@@ -2667,15 +2667,15 @@ EXPLAIN (buffers off, costs off) SELECT * FROM test_partials ORDER BY time;
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on test_partials
    Order: test_partials."time"
-   ->  Custom Scan (ColumnarScan) on _hyper_18_35_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_35_chunk
          ->  Sort
                Sort Key: _hyper_18_35_chunk_compressed._ts_meta_v2_first_time, _hyper_18_35_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_35_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_18_36_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_36_chunk
          ->  Sort
                Sort Key: _hyper_18_36_chunk_compressed._ts_meta_v2_first_time, _hyper_18_36_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_36_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_18_37_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_37_chunk
          ->  Sort
                Sort Key: _hyper_18_37_chunk_compressed._ts_meta_v2_first_time, _hyper_18_37_chunk_compressed._ts_meta_v2_last_time
                ->  Seq Scan on _hyper_18_37_chunk_compressed

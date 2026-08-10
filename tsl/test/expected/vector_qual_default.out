@@ -231,7 +231,7 @@ select count(*) from qualdef where b % 2 = 1 and b = 3;
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=200.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=200.00 loops=1)
                      Filter: ((_hyper_1_1_chunk.b % 2) = 1)
                      Rows Removed by Filter: 799
                      Vectorized Filter: (_hyper_1_1_chunk.b = 3)
@@ -241,7 +241,7 @@ select count(*) from qualdef where b % 2 = 1 and b = 3;
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=200.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=200.00 loops=1)
                      Filter: ((_hyper_1_2_chunk.b % 2) = 1)
                      Rows Removed by Filter: 799
                      Vectorized Filter: (_hyper_1_2_chunk.b = 3)
@@ -258,7 +258,7 @@ select count(*) from qualdef where b % 2 = 1 and bool_identity(b = 3);
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=200.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=200.00 loops=1)
                      Filter: (((_hyper_1_1_chunk.b % 2) = 1) AND bool_identity((_hyper_1_1_chunk.b = 3)))
                      Rows Removed by Filter: 799
                      Bulk Decompression: true
@@ -267,7 +267,7 @@ select count(*) from qualdef where b % 2 = 1 and bool_identity(b = 3);
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=200.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=200.00 loops=1)
                      Filter: (((_hyper_1_2_chunk.b % 2) = 1) AND bool_identity((_hyper_1_2_chunk.b = 3)))
                      Rows Removed by Filter: 799
                      Bulk Decompression: true
@@ -283,7 +283,7 @@ select count(*) from qualdef where b % 2 = 1;
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=400.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=400.00 loops=1)
                      Filter: ((_hyper_1_1_chunk.b % 2) = 1)
                      Rows Removed by Filter: 599
                      Bulk Decompression: true
@@ -292,7 +292,7 @@ select count(*) from qualdef where b % 2 = 1;
          ->  Custom Scan (VectorAgg) (actual rows=1.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=400.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=400.00 loops=1)
                      Filter: ((_hyper_1_2_chunk.b % 2) = 1)
                      Rows Removed by Filter: 599
                      Bulk Decompression: true
@@ -308,7 +308,7 @@ select count(*) from qualdef where b / 1000 > 1;
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
                      Filter: ((_hyper_1_1_chunk.b / 1000) > 1)
                      Rows Removed by Filter: 999
                      Batches Removed by Filter: 1
@@ -318,7 +318,7 @@ select count(*) from qualdef where b / 1000 > 1;
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
                      Filter: ((_hyper_1_2_chunk.b / 1000) > 1)
                      Rows Removed by Filter: 999
                      Batches Removed by Filter: 1
@@ -335,7 +335,7 @@ select count(*) from qualdef where b > 1000;
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
                      Vectorized Filter: (_hyper_1_1_chunk.b > 1000)
                      Rows Removed by Filter: 999
                      Batches Removed by Filter: 1
@@ -345,7 +345,7 @@ select count(*) from qualdef where b > 1000;
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
                      Vectorized Filter: (_hyper_1_2_chunk.b > 1000)
                      Rows Removed by Filter: 999
                      Batches Removed by Filter: 1
@@ -362,7 +362,7 @@ select count(*) from qualdef where b % 2 = 1 and b not in (1, 3, 5);
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
                      Filter: ((_hyper_1_1_chunk.b % 2) = 1)
                      Rows Removed by Filter: 999
                      Vectorized Filter: (_hyper_1_1_chunk.b <> ALL ('{1,3,5}'::integer[]))
@@ -373,7 +373,7 @@ select count(*) from qualdef where b % 2 = 1 and b not in (1, 3, 5);
          ->  Custom Scan (VectorAgg) (actual rows=0.00 loops=1)
                Output: (PARTIAL count(*))
                Grouping Policy: all compressed batches
-               ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_2_chunk (actual rows=0.00 loops=1)
                      Filter: ((_hyper_1_2_chunk.b % 2) = 1)
                      Rows Removed by Filter: 999
                      Vectorized Filter: (_hyper_1_2_chunk.b <> ALL ('{1,3,5}'::integer[]))

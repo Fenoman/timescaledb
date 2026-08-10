@@ -39,10 +39,10 @@ explain (buffers off, costs off) select sum(c) from dvagg;
  Finalize Aggregate
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 select sum(c) from dvagg;
@@ -795,11 +795,11 @@ explain (buffers off, costs off) select sum(c) from dvagg where b in (0, 1, 3);
  Finalize Aggregate
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      Vectorized Filter: (b = ANY ('{0,1,3}'::integer[]))
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      Vectorized Filter: (b = ANY ('{0,1,3}'::integer[]))
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
@@ -813,11 +813,11 @@ explain (buffers off, costs off) select sum(a), sum(b), sum(c) from dvagg where 
  Finalize Aggregate
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      Vectorized Filter: (b = ANY ('{0,1,3}'::integer[]))
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      Vectorized Filter: (b = ANY ('{0,1,3}'::integer[]))
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
@@ -829,7 +829,7 @@ explain (buffers off, costs off) select sum(c) from dvagg where a < stable_abs(1
    ->  Custom Scan (ChunkAppend) on dvagg
          Chunks excluded during startup: 1
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      Vectorized Filter: (a < stable_abs(1000))
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
                            Filter: (_ts_meta_v2_last_a < stable_abs(1000))
@@ -849,9 +849,9 @@ explain (buffers off, costs off) select sum(c) from dvagg group by grouping sets
    Hash Key: dvagg.a
    Group Key: ()
    ->  Append
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- As a reference, the result on decompressed table.
