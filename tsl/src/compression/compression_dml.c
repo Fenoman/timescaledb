@@ -1611,6 +1611,10 @@ batch_matches_vectorized(RowDecompressor *decompressor, ScanKeyData *scankeys, i
 {
 	const int n_rows =
 		DatumGetInt32(decompressor->compressed_datums[decompressor->count_compressed_attindex]);
+	/* n_rows comes from the count metadata column; reject corrupt values before
+	 * using it to size buffers, as the sibling readers in compression.c do. */
+	CheckCompressedData(n_rows > 0);
+	CheckCompressedData(n_rows <= GLOBAL_MAX_ROWS_PER_COMPRESSION);
 	const int bitmap_bytes = sizeof(uint64) * ((n_rows + 63) / 64);
 	uint64 *restrict result =
 		MemoryContextAlloc(decompressor->per_compressed_row_ctx, bitmap_bytes);
@@ -2640,6 +2644,9 @@ find_matching_index(Relation comp_chunk_rel, List **index_filters, List **heap_f
 		{
 			*heap_filters = lappend(*heap_filters, sf);
 			*index_filters = list_delete_nth_cell(*index_filters, i);
+			/* The next element shifted into position i; re-examine it so it is
+			 * not skipped. */
+			i--;
 		}
 	}
 	if (ts_guc_debug_compression_path_info)
