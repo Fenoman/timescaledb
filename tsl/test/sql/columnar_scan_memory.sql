@@ -2,7 +2,7 @@
 -- Please see the included NOTICE for copyright information and
 -- LICENSE-TIMESCALE for a copy of the license.
 
--- Test that ColumnarScan ExprContext resets prevent memory leaks.
+-- Test that TimescaleDBColumnarScan ExprContext resets prevent memory leaks.
 -- Without ResetExprContext before ExecProject or ExecQual, the per-tuple
 -- expression context grows with every tuple processed.
 --
@@ -33,7 +33,7 @@ select count(compress_chunk(c)) from show_chunks('csm') c;
 create table log(n int, bytes bigint, mh text);
 
 -- Test 1: Projection on direct chunk scan.
--- Scan the chunk directly so that ColumnarScan handles projection (no Result
+-- Scan the chunk directly so that TimescaleDBColumnarScan handles projection (no Result
 -- node above).
 select format($$ insert into log
     select %1$s, ts_debug_allocated_bytes(), max(h) from (
@@ -50,7 +50,7 @@ select * from log where (
 );
 
 -- Test 2: Qual with allocating expressions, no projection.
--- SELECT * returns all raw columns so ColumnarScan has no projection
+-- SELECT * returns all raw columns so TimescaleDBColumnarScan has no projection
 -- (ps_ProjInfo is NULL). The ::text casts in WHERE go through postgres_qual
 -- (ExecQual) where the only ResetExprContext for this code path lives.
 -- The outer query references all columns via max() to prevent the planner
@@ -74,8 +74,8 @@ select * from log where (
 );
 
 -- Test 3: Projection via hypertable query.
--- Currently the planner inserts a Result node above ColumnarScan for
--- hypertable queries, so ColumnarScan does not handle projection directly.
+-- Currently the planner inserts a Result node above TimescaleDBColumnarScan for
+-- hypertable queries, so TimescaleDBColumnarScan does not handle projection directly.
 -- This test guards against future changes that push projection down.
 -- Filter by v1 % 10 < K instead of LIMIT so that all chunks are scanned
 -- from the first iteration (v1 values are spread evenly across chunks).

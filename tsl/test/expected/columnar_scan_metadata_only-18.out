@@ -47,15 +47,15 @@ EXPLAIN (costs off) SELECT time, device FROM limit_one ORDER BY time LIMIT 1;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
@@ -70,15 +70,15 @@ EXPLAIN (costs off) SELECT time, device FROM limit_one ORDER BY time DESC LIMIT 
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -93,11 +93,11 @@ EXPLAIN (costs off) SELECT device, time, ts2 FROM limit_one ORDER BY device DESC
  Limit
    ->  Merge Append
          Sort Key: limit_one.device DESC, limit_one."time" DESC, limit_one.ts2 DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan Backward using _hyper_1_1_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Index Scan Backward using _hyper_1_2_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Index Scan Backward using _hyper_1_3_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_1_3_chunk_compressed
 
 SELECT device, time, ts2 FROM limit_one ORDER BY device DESC, time DESC, ts2 DESC LIMIT 1;
@@ -111,17 +111,17 @@ EXPLAIN (costs off) SELECT tableoid::regclass, time FROM limit_one WHERE device 
    ->  Result
          ->  Custom Scan (ChunkAppend) on limit_one
                Order: limit_one."time"
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Sort
                            Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time, _hyper_1_1_chunk_compressed._ts_meta_v2_last_time
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                                  Filter: (device = 2)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Sort
                            Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time, _hyper_1_2_chunk_compressed._ts_meta_v2_last_time
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
                                  Filter: (device = 2)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                      ->  Sort
                            Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time, _hyper_1_3_chunk_compressed._ts_meta_v2_last_time
                            ->  Seq Scan on _hyper_1_3_chunk_compressed
@@ -137,15 +137,15 @@ EXPLAIN (costs off) SELECT time, val2 FROM limit_one ORDER BY time DESC LIMIT 1;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_time DESC
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
@@ -158,7 +158,7 @@ SELECT time, val2 FROM limit_one ORDER BY time DESC LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_minmax ORDER BY time LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_2_4_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_4_chunk
          ->  Sort
                Sort Key: _hyper_2_4_chunk_compressed._ts_meta_min_1
                ->  Seq Scan on _hyper_2_4_chunk_compressed
@@ -171,7 +171,7 @@ SELECT time FROM limit_one_minmax ORDER BY time LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_minmax ORDER BY time DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_2_4_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_4_chunk
          ->  Sort
                Sort Key: _hyper_2_4_chunk_compressed._ts_meta_max_1 DESC
                ->  Seq Scan on _hyper_2_4_chunk_compressed
@@ -184,7 +184,7 @@ SELECT time FROM limit_one_minmax ORDER BY time DESC LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_null ORDER BY time DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_4_6_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_6_chunk
          ->  Sort
                Sort Key: _hyper_4_6_chunk_compressed._ts_meta_v2_last_time DESC
                ->  Seq Scan on _hyper_4_6_chunk_compressed
@@ -200,15 +200,15 @@ EXPLAIN (costs off) SELECT time, val FROM limit_one ORDER BY time LIMIT 1;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
@@ -218,15 +218,15 @@ EXPLAIN (costs off) SELECT time FROM limit_one ORDER BY time LIMIT 2;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
@@ -236,15 +236,15 @@ EXPLAIN (costs off) SELECT time FROM limit_one ORDER BY time LIMIT 1 OFFSET 1;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
@@ -254,17 +254,17 @@ EXPLAIN (costs off) SELECT time FROM limit_one WHERE val > 1000 ORDER BY time LI
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one
          Order: limit_one."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                Filter: (val > '1000'::double precision)
                ->  Sort
                      Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                Filter: (val > '1000'::double precision)
                ->  Sort
                      Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                Filter: (val > '1000'::double precision)
                ->  Sort
                      Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
@@ -277,25 +277,25 @@ EXPLAIN (costs off) SELECT l1.time FROM limit_one l1, limit_one l2 WHERE l1.time
          Join Filter: (l1."time" = l2.ts2)
          ->  Custom Scan (ChunkAppend) on limit_one l1
                Order: l1."time"
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk l1_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk l1_1
                      ->  Sort
                            Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_time
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk l1_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk l1_2
                      ->  Sort
                            Sort Key: _hyper_1_2_chunk_compressed._ts_meta_v2_first_time
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk l1_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk l1_3
                      ->  Sort
                            Sort Key: _hyper_1_3_chunk_compressed._ts_meta_v2_first_time
                            ->  Seq Scan on _hyper_1_3_chunk_compressed
          ->  Materialize
                ->  Append
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk l2_1
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk l2_1
                            ->  Seq Scan on _hyper_1_1_chunk_compressed _hyper_1_1_chunk_compressed_1
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk l2_2
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk l2_2
                            ->  Seq Scan on _hyper_1_2_chunk_compressed _hyper_1_2_chunk_compressed_1
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk l2_3
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk l2_3
                            ->  Seq Scan on _hyper_1_3_chunk_compressed _hyper_1_3_chunk_compressed_1
 
 EXPLAIN (costs off) SELECT time FROM limit_one_minmax_null ORDER BY time DESC LIMIT 1;
@@ -303,7 +303,7 @@ EXPLAIN (costs off) SELECT time FROM limit_one_minmax_null ORDER BY time DESC LI
  Limit
    ->  Sort
          Sort Key: _hyper_3_5_chunk."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_3_5_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_5_chunk
                ->  Seq Scan on _hyper_3_5_chunk_compressed
 
 SELECT time FROM limit_one_minmax_null ORDER BY time DESC LIMIT 1;
@@ -316,11 +316,11 @@ EXPLAIN (costs off) SELECT time, device FROM limit_one LIMIT 1;
 --- QUERY PLAN ---
  Limit
    ->  Append
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Seq Scan on _hyper_1_3_chunk_compressed
 
 SELECT time, device FROM limit_one LIMIT 1;
@@ -333,13 +333,13 @@ EXPLAIN (costs off) SELECT 1 FROM limit_one WHERE device = 3 LIMIT 1;
  Limit
    ->  Result
          ->  Append
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
                            Filter: (device = 3)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
                            Filter: (device = 3)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                      ->  Seq Scan on _hyper_1_3_chunk_compressed
                            Filter: (device = 3)
 
@@ -351,7 +351,7 @@ SELECT 1 FROM limit_one WHERE device = 3 LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_minmax_null LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_3_5_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_5_chunk
          ->  Seq Scan on _hyper_3_5_chunk_compressed
 
 SELECT time FROM limit_one_minmax_null LIMIT 1;
@@ -363,11 +363,11 @@ EXPLAIN (costs off) SELECT val FROM limit_one LIMIT 1;
 --- QUERY PLAN ---
  Limit
    ->  Append
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                ->  Seq Scan on _hyper_1_2_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_1_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_3_chunk
                ->  Seq Scan on _hyper_1_3_chunk_compressed
 
 -- results match the decompressed scan
@@ -455,7 +455,7 @@ PREPARE limit_one_prep(int) AS SELECT time, val FROM limit_one_more ORDER BY tim
 EXPLAIN (costs off) SELECT time, device, val FROM limit_one_more ORDER BY time, val LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
          ->  Sort
                Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time, _hyper_5_7_chunk_compressed._ts_meta_v2_first_val
                ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -470,7 +470,7 @@ EXPLAIN (costs off) SELECT device, length(txt), md5(txt) FROM limit_one_more ORD
 --- QUERY PLAN ---
  Limit
    ->  Result
-         ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                ->  Sort
                      Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_last_time DESC, _hyper_5_7_chunk_compressed._ts_meta_v2_last_val DESC
                      ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -488,7 +488,7 @@ EXPLAIN (costs off) SELECT d, (SELECT val FROM limit_one_more WHERE device = d O
      ->  Limit
            ->  Custom Scan (ChunkAppend) on limit_one_more
                  Order: limit_one_more."time" DESC
-                 ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+                 ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                        ->  Sort
                              Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time DESC, _hyper_5_7_chunk_compressed._ts_meta_v2_last_time DESC
                              ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -507,10 +507,10 @@ EXPLAIN (costs off) SELECT time, val FROM (SELECT time, val FROM limit_one_more 
    ->  Sort
          Sort Key: _hyper_5_7_chunk."time", _hyper_5_7_chunk.val
          ->  Append
-               ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                      ->  Seq Scan on _hyper_5_7_chunk_compressed
                            Filter: (device = 1)
-               ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk _hyper_5_7_chunk_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk _hyper_5_7_chunk_1
                      ->  Seq Scan on _hyper_5_7_chunk_compressed _hyper_5_7_chunk_compressed_1
                            Filter: (device = 2)
 
@@ -525,11 +525,11 @@ EXPLAIN (costs off) SELECT time FROM (SELECT time FROM limit_one_more UNION ALL 
  Limit
    ->  Merge Append
          Sort Key: _hyper_5_7_chunk."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                ->  Sort
                      Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_5_7_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_6_8_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_8_chunk
                ->  Sort
                      Sort Key: _hyper_6_8_chunk_compressed._ts_meta_min_1
                      ->  Seq Scan on _hyper_6_8_chunk_compressed
@@ -544,7 +544,7 @@ SET plan_cache_mode = force_custom_plan;
 EXPLAIN (costs off) EXECUTE limit_one_prep(1);
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
          ->  Sort
                Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time, _hyper_5_7_chunk_compressed._ts_meta_v2_first_val
                ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -558,7 +558,7 @@ SET plan_cache_mode = force_generic_plan;
 EXPLAIN (costs off) EXECUTE limit_one_prep(1);
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
          ->  Sort
                Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time, _hyper_5_7_chunk_compressed._ts_meta_v2_first_val
                ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -573,7 +573,7 @@ RESET plan_cache_mode;
 EXPLAIN (costs off) SELECT time FROM limit_one_desc ORDER BY time DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_6_8_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_8_chunk
          ->  Sort
                Sort Key: _hyper_6_8_chunk_compressed._ts_meta_max_1 DESC
                ->  Seq Scan on _hyper_6_8_chunk_compressed
@@ -586,7 +586,7 @@ SELECT time FROM limit_one_desc ORDER BY time DESC LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_desc ORDER BY time LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_6_8_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_8_chunk
          ->  Sort
                Sort Key: _hyper_6_8_chunk_compressed._ts_meta_min_1
                ->  Seq Scan on _hyper_6_8_chunk_compressed
@@ -624,7 +624,7 @@ EXPLAIN (costs off) DELETE FROM limit_one_target WHERE time = (SELECT time FROM 
                  Order: limit_one_more."time", limit_one_more.val
                  ->  Merge Append
                        Sort Key: limit_one_more."time", limit_one_more.val
-                       ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                              ->  Sort
                                    Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time, _hyper_5_7_chunk_compressed._ts_meta_v2_first_val
                                    ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -682,7 +682,7 @@ EXPLAIN (costs off) SELECT time, val FROM limit_one_more ORDER BY time, val LIMI
          Order: limit_one_more."time", limit_one_more.val
          ->  Merge Append
                Sort Key: limit_one_more."time", limit_one_more.val
-               ->  Custom Scan (ColumnarScan) on _hyper_5_7_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_7_chunk
                      ->  Sort
                            Sort Key: _hyper_5_7_chunk_compressed._ts_meta_v2_first_time, _hyper_5_7_chunk_compressed._ts_meta_v2_first_val
                            ->  Seq Scan on _hyper_5_7_chunk_compressed
@@ -718,7 +718,7 @@ EXPLAIN (costs off) SELECT max(time) FROM limit_one_minmax;
  Result
    InitPlan 1
      ->  Limit
-           ->  Custom Scan (ColumnarScan) on _hyper_7_9_chunk
+           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_9_chunk
                  ->  Sort
                        Sort Key: _hyper_7_9_chunk_compressed._ts_meta_v2_last_time DESC
                        ->  Seq Scan on _hyper_7_9_chunk_compressed
@@ -733,13 +733,13 @@ EXPLAIN (costs off) SELECT min(time), max(time) FROM limit_one_minmax;
  Result
    InitPlan 1
      ->  Limit
-           ->  Custom Scan (ColumnarScan) on _hyper_7_9_chunk
+           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_9_chunk
                  ->  Sort
                        Sort Key: _hyper_7_9_chunk_compressed._ts_meta_v2_first_time
                        ->  Seq Scan on _hyper_7_9_chunk_compressed
    InitPlan 2
      ->  Limit
-           ->  Custom Scan (ColumnarScan) on _hyper_7_9_chunk _hyper_7_9_chunk_1
+           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_9_chunk _hyper_7_9_chunk_1
                  ->  Sort
                        Sort Key: _hyper_7_9_chunk_compressed_1._ts_meta_v2_last_time DESC
                        ->  Seq Scan on _hyper_7_9_chunk_compressed _hyper_7_9_chunk_compressed_1
@@ -768,15 +768,15 @@ EXPLAIN (costs off) EXECUTE limit_one_stable_prep;
  Limit
    ->  Custom Scan (ChunkAppend) on limit_one_stable
          Order: limit_one_stable."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_8_10_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_10_chunk
                ->  Sort
                      Sort Key: _hyper_8_10_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_8_10_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_8_11_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_11_chunk
                ->  Sort
                      Sort Key: _hyper_8_11_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_8_11_chunk_compressed
-         ->  Custom Scan (ColumnarScan) on _hyper_8_12_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_12_chunk
                ->  Sort
                      Sort Key: _hyper_8_12_chunk_compressed._ts_meta_v2_first_time
                      ->  Seq Scan on _hyper_8_12_chunk_compressed
@@ -809,7 +809,7 @@ SELECT count(compress_chunk(ch)) FROM show_chunks('limit_one_equal') ch;
 EXPLAIN (costs off) SELECT x, y FROM limit_one_equal ORDER BY x DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_9_13_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_13_chunk
          ->  Index Scan Backward using _hyper_9_13_chunk_compressed__ts_meta_min_1__ts_meta_max_1__idx on _hyper_9_13_chunk_compressed
 
 SELECT x, y FROM limit_one_equal ORDER BY x DESC LIMIT 1;
@@ -820,7 +820,7 @@ SELECT x, y FROM limit_one_equal ORDER BY x DESC LIMIT 1;
 EXPLAIN (costs off) SELECT x, y FROM limit_one_equal ORDER BY x LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_9_13_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_13_chunk
          ->  Index Scan using _hyper_9_13_chunk_compressed__ts_meta_min_1__ts_meta_max_1__idx on _hyper_9_13_chunk_compressed
 
 SELECT x, y FROM limit_one_equal ORDER BY x LIMIT 1;
@@ -831,7 +831,7 @@ SELECT x, y FROM limit_one_equal ORDER BY x LIMIT 1;
 EXPLAIN (costs off) SELECT x FROM limit_one_equal ORDER BY x DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_9_13_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_9_13_chunk
          ->  Index Scan Backward using _hyper_9_13_chunk_compressed__ts_meta_min_1__ts_meta_max_1__idx on _hyper_9_13_chunk_compressed
 
 SELECT x FROM limit_one_equal ORDER BY x DESC LIMIT 1;
@@ -855,7 +855,7 @@ EXPLAIN (costs off, verbose) SELECT time, device FROM limit_one_verbose ORDER BY
 --- QUERY PLAN ---
  Limit
    Output: _hyper_10_14_chunk."time", _hyper_10_14_chunk.device
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_10_14_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_10_14_chunk
          Output: _hyper_10_14_chunk."time", _hyper_10_14_chunk.device
          Metadata Only: true
          ->  Sort
@@ -868,7 +868,7 @@ EXPLAIN (costs off, verbose) SELECT time, val FROM limit_one_verbose ORDER BY ti
 --- QUERY PLAN ---
  Limit
    Output: _hyper_10_14_chunk."time", _hyper_10_14_chunk.val
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_10_14_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_10_14_chunk
          Output: _hyper_10_14_chunk."time", _hyper_10_14_chunk.val
          Batch Sorted Merge: true
          ->  Sort
@@ -893,7 +893,7 @@ ANALYZE limit_one_sorted;
 EXPLAIN (costs off) SELECT time FROM limit_one_sorted ORDER BY time DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
          ->  Sort
                Sort Key: _hyper_11_15_chunk_compressed._ts_meta_max_2 DESC
                ->  Seq Scan on _hyper_11_15_chunk_compressed
@@ -906,7 +906,7 @@ SELECT time FROM limit_one_sorted ORDER BY time DESC LIMIT 1;
 EXPLAIN (costs off) SELECT time, device FROM limit_one_sorted ORDER BY time LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
          ->  Sort
                Sort Key: _hyper_11_15_chunk_compressed._ts_meta_min_2
                ->  Seq Scan on _hyper_11_15_chunk_compressed
@@ -919,7 +919,7 @@ SELECT time, device FROM limit_one_sorted ORDER BY time LIMIT 1;
 EXPLAIN (costs off) SELECT time FROM limit_one_sorted WHERE device = 1 ORDER BY time DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
          ->  Sort
                Sort Key: _hyper_11_15_chunk_compressed._ts_meta_max_2 DESC
                ->  Seq Scan on _hyper_11_15_chunk_compressed
@@ -933,7 +933,7 @@ SELECT time FROM limit_one_sorted WHERE device = 1 ORDER BY time DESC LIMIT 1;
 EXPLAIN (costs off) SELECT val2 FROM limit_one_sorted ORDER BY val2 DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
          ->  Sort
                Sort Key: _hyper_11_15_chunk_compressed._ts_meta_v2_max_val2 DESC
                ->  Seq Scan on _hyper_11_15_chunk_compressed
@@ -949,7 +949,7 @@ EXPLAIN (costs off) SELECT time, sensor FROM limit_one_sorted ORDER BY time DESC
  Limit
    ->  Sort
          Sort Key: _hyper_11_15_chunk."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
                ->  Seq Scan on _hyper_11_15_chunk_compressed
 
 EXPLAIN (costs off) SELECT time, val FROM limit_one_sorted ORDER BY time DESC LIMIT 1;
@@ -957,7 +957,7 @@ EXPLAIN (costs off) SELECT time, val FROM limit_one_sorted ORDER BY time DESC LI
  Limit
    ->  Sort
          Sort Key: _hyper_11_15_chunk."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
                ->  Seq Scan on _hyper_11_15_chunk_compressed
 
 EXPLAIN (costs off) SELECT val3 FROM limit_one_sorted ORDER BY val3 DESC LIMIT 1;
@@ -965,7 +965,7 @@ EXPLAIN (costs off) SELECT val3 FROM limit_one_sorted ORDER BY val3 DESC LIMIT 1
  Limit
    ->  Sort
          Sort Key: _hyper_11_15_chunk.val3 DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
                ->  Seq Scan on _hyper_11_15_chunk_compressed
 
 EXPLAIN (costs off) SELECT time FROM limit_one_sorted ORDER BY time DESC, device LIMIT 1;
@@ -973,7 +973,7 @@ EXPLAIN (costs off) SELECT time FROM limit_one_sorted ORDER BY time DESC, device
  Limit
    ->  Sort
          Sort Key: _hyper_11_15_chunk."time" DESC, _hyper_11_15_chunk.device
-         ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk
                ->  Seq Scan on _hyper_11_15_chunk_compressed
 
 -- min/max aggregates through DeferredChunkAppend
@@ -988,7 +988,7 @@ EXPLAIN (analyze, costs off, timing off, summary off, buffers off) SELECT max(ti
                  Filter: (("time" IS NOT NULL))
                  Chunks Visited: 1
                  ->  Limit (actual rows=1.00 loops=1)
-                       ->  Custom Scan (ColumnarScan) on _hyper_11_15_chunk (actual rows=1.00 loops=1)
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_11_15_chunk (actual rows=1.00 loops=1)
                              ->  Sort (actual rows=1.00 loops=1)
                                    Sort Key: _hyper_11_15_chunk_compressed._ts_meta_max_2 DESC
                                    Sort Method: top-N heapsort 
@@ -1023,7 +1023,7 @@ ANALYZE limit_one_varchar;
 EXPLAIN (costs off) SELECT name FROM limit_one_varchar ORDER BY name LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_12_16_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_12_16_chunk
          ->  Sort
                Sort Key: _hyper_12_16_chunk_compressed._ts_meta_v2_min_name
                ->  Seq Scan on _hyper_12_16_chunk_compressed
@@ -1036,7 +1036,7 @@ SELECT name FROM limit_one_varchar ORDER BY name LIMIT 1;
 EXPLAIN (costs off) SELECT name, device FROM limit_one_varchar ORDER BY name DESC LIMIT 1;
 --- QUERY PLAN ---
  Limit
-   ->  Custom Scan (ColumnarScan) on _hyper_12_16_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_12_16_chunk
          ->  Sort
                Sort Key: _hyper_12_16_chunk_compressed._ts_meta_v2_max_name DESC
                ->  Seq Scan on _hyper_12_16_chunk_compressed

@@ -111,7 +111,7 @@ FROM metrics_compressed
 WHERE time < '2000-01-01'::timestamptz - '6h'::interval;
 --- QUERY PLAN ---
  Append
-   ->  Custom Scan (ColumnarScan) on _hyper_X_X_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_X_X_chunk
          Vectorized Filter: ("time" < ('Sat Jan 01 00:00:00 2000 PST'::timestamp with time zone - '@ 6 hours'::interval))
          ->  Seq Scan on _hyper_X_X_chunk_compressed
                Filter: (_ts_meta_v2_last_time < ('Sat Jan 01 00:00:00 2000 PST'::timestamp with time zone - '@ 6 hours'::interval))
@@ -125,7 +125,7 @@ FROM metrics_space_compressed
 WHERE time < '2000-01-01'::timestamptz - '6h'::interval
     AND device_id = 1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_X_X_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_X_X_chunk
    Vectorized Filter: ("time" < ('Sat Jan 01 00:00:00 2000 PST'::timestamp with time zone - '@ 6 hours'::interval))
    ->  Index Scan using _hyper_X_X_chunk_compressed_device_id__ts_meta_v2_first_ti_idx on _hyper_X_X_chunk_compressed
          Index Cond: ((device_id = 1) AND (_ts_meta_v2_last_time < ('Sat Jan 01 00:00:00 2000 PST'::timestamp with time zone - '@ 6 hours'::interval)))

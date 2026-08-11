@@ -38,7 +38,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.device
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- CteScan
@@ -48,7 +48,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    CTE q1
      ->  Finalize Aggregate
            ->  Custom Scan (VectorAgg)
-                 ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                 ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                        ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- InitPlan
@@ -58,7 +58,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    InitPlan exists_1
      ->  Finalize Aggregate
            ->  Custom Scan (VectorAgg)
-                 ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                 ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                        ->  Seq Scan on _hyper_1_1_chunk_compressed
    ->  Result
          One-Time Filter: (InitPlan exists_1).col1
@@ -69,14 +69,14 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Aggregate
    Filter: (sum(_hyper_1_1_chunk.value) > '0'::double precision)
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT sum(value) from metrics HAVING sum(value) < 0;
 --- QUERY PLAN ---
  Aggregate
    Filter: (sum(_hyper_1_1_chunk.value) < '0'::double precision)
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING on aggregate with GROUP BY.
@@ -87,7 +87,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (sum(_hyper_1_1_chunk.value) > '500'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT device, count(*) from metrics GROUP BY device HAVING count(*) > 100 ORDER BY device;
@@ -97,7 +97,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (count(*) > 100)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING referencing a different aggregate than the target list.
@@ -108,7 +108,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (count(*) > 100)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT device, count(*) from metrics GROUP BY device HAVING sum(value) > 500 ORDER BY device;
@@ -118,7 +118,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (sum(_hyper_1_1_chunk.value) > '500'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING with multiple conditions.
@@ -130,7 +130,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: ((sum(_hyper_1_1_chunk.value) > '500'::double precision) AND (count(*) > 100))
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING on grouping column (pushed down by planner to WHERE).
@@ -138,7 +138,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Finalize GroupAggregate
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                Vectorized Filter: (device = 'dev 5'::text)
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
@@ -150,7 +150,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: ((sum(_hyper_1_1_chunk.value) * '2'::double precision) > '1000'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING with different aggregate functions.
@@ -161,7 +161,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (min(_hyper_1_1_chunk.value) = '0'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT device, max(value) from metrics GROUP BY device HAVING max(value) < 90 ORDER BY device;
@@ -171,7 +171,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (max(_hyper_1_1_chunk.value) < '90'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT device, avg(value) from metrics GROUP BY device HAVING avg(value) > 49 ORDER BY device;
@@ -181,7 +181,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (avg(_hyper_1_1_chunk.value) > '49'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- HAVING with segmentby grouping.
@@ -192,7 +192,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device
          Filter: (sum(_hyper_1_1_chunk.value) > '10000'::double precision)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Expression over a grouping column in the select list.
@@ -203,7 +203,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Non-injective expression over a grouping column, without the bare
@@ -215,7 +215,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Expression over a text grouping column, collapsing all groups to one value.
@@ -226,7 +226,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.device
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Constant in the select list of a grouped aggregate.
@@ -237,7 +237,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Stable expression without column references in the select list.
@@ -245,7 +245,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Finalize Aggregate
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Correlated Subquery on single chunk
@@ -253,7 +253,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Hash Right Semi Join
    Hash Cond: (CASE WHEN (_hyper_1_1_chunk.value = '1'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (12))
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
    ->  Hash
          ->  Limit
@@ -266,7 +266,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Hash Right Semi Join
    Hash Cond: ((CASE WHEN (_hyper_1_1_chunk.value = '1'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (12)) AND (CASE WHEN (_hyper_1_1_chunk.value = '2'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (13)))
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
    ->  Hash
          ->  Limit
@@ -280,7 +280,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Expression over both a grouping column and an aggregate.
@@ -291,7 +291,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Duplicate identical aggregates.
@@ -302,7 +302,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Aggregate listed before the grouping column in the select list.
@@ -313,7 +313,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.device
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Aggregate whose partial state type differs from its result type.
@@ -324,7 +324,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Grouping by a system column is not vectorized.
@@ -334,7 +334,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    Sort Key: (((_hyper_1_1_chunk.tableoid)::regclass)::text)
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.tableoid
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Volatile expression over a grouping column in the select list.
@@ -345,7 +345,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Expressions over a grouping column computed by the finalize
@@ -357,7 +357,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 :EXPLAIN SELECT CASE value WHEN 0 THEN -1 ELSE value END AS sw, sum(value) FROM metrics GROUP BY value ORDER BY sw;
@@ -367,7 +367,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Volatile grouping expression is not vectorized.
@@ -375,7 +375,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  HashAggregate
    Group Key: (_hyper_1_1_chunk.value + (((random() * '0'::double precision))::integer)::double precision)
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Volatile aggregate argument is not vectorized.
@@ -383,7 +383,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  HashAggregate
    Group Key: _hyper_1_1_chunk.value
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Volatile aggregate filter is not vectorized.
@@ -394,7 +394,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Sort Key: _hyper_1_1_chunk.value
          ->  HashAggregate
                Group Key: _hyper_1_1_chunk.value
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- Volatile expression over an aggregate, computed once per group.
@@ -405,7 +405,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Finalize HashAggregate
          Group Key: _hyper_1_1_chunk.value
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 -- run queries with single chunk
@@ -450,10 +450,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.device
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- CteScan
@@ -464,10 +464,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
      ->  Finalize Aggregate
            ->  Append
                  ->  Custom Scan (VectorAgg)
-                       ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                              ->  Seq Scan on _hyper_1_1_chunk_compressed
                  ->  Custom Scan (VectorAgg)
-                       ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                              ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- InitPlan
@@ -478,10 +478,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
      ->  Finalize Aggregate
            ->  Append
                  ->  Custom Scan (VectorAgg)
-                       ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                              ->  Seq Scan on _hyper_1_1_chunk_compressed
                  ->  Custom Scan (VectorAgg)
-                       ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                       ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                              ->  Seq Scan on _hyper_1_2_chunk_compressed
    ->  Result
          One-Time Filter: (InitPlan exists_1).col1
@@ -494,10 +494,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
    Filter: (sum(metrics.value) > '0'::double precision)
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT sum(value) from metrics HAVING sum(value) < 0;
@@ -506,10 +506,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
    Filter: (sum(metrics.value) < '0'::double precision)
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING on aggregate with GROUP BY.
@@ -522,10 +522,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (sum(metrics.value) > '500'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT device, count(*) from metrics GROUP BY device HAVING count(*) > 100 ORDER BY device;
@@ -537,10 +537,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (count(*) > 100)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING referencing a different aggregate than the target list.
@@ -553,10 +553,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (count(*) > 100)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT device, count(*) from metrics GROUP BY device HAVING sum(value) > 500 ORDER BY device;
@@ -568,10 +568,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (sum(metrics.value) > '500'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING with multiple conditions.
@@ -585,10 +585,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: ((sum(metrics.value) > '500'::double precision) AND (count(*) > 100))
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING on grouping column (pushed down by planner to WHERE).
@@ -597,11 +597,11 @@ SHOW timescaledb.enable_vectorized_aggregation;
  Finalize GroupAggregate
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      Vectorized Filter: (device = 'dev 5'::text)
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      Vectorized Filter: (device = 'dev 5'::text)
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
@@ -615,10 +615,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: ((sum(metrics.value) * '2'::double precision) > '1000'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING with different aggregate functions.
@@ -631,10 +631,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (min(metrics.value) = '0'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT device, max(value) from metrics GROUP BY device HAVING max(value) < 90 ORDER BY device;
@@ -646,10 +646,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (max(metrics.value) < '90'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT device, avg(value) from metrics GROUP BY device HAVING avg(value) > 49 ORDER BY device;
@@ -661,10 +661,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (avg(metrics.value) > '49'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- HAVING with segmentby grouping.
@@ -677,10 +677,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Filter: (sum(metrics.value) > '10000'::double precision)
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Expression over a grouping column in the select list.
@@ -692,10 +692,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Non-injective expression over a grouping column, without the bare
@@ -708,10 +708,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Expression over a text grouping column, collapsing all groups to one value.
@@ -723,10 +723,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.device
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Constant in the select list of a grouped aggregate.
@@ -738,10 +738,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Stable expression without column references in the select list.
@@ -750,10 +750,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
  Finalize Aggregate
    ->  Append
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Correlated Subquery on single chunk
@@ -761,7 +761,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Hash Right Semi Join
    Hash Cond: (CASE WHEN (_hyper_1_1_chunk.value = '1'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (12))
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
    ->  Hash
          ->  Limit
@@ -774,7 +774,7 @@ SHOW timescaledb.enable_vectorized_aggregation;
 --- QUERY PLAN ---
  Hash Right Semi Join
    Hash Cond: ((CASE WHEN (_hyper_1_1_chunk.value = '1'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (12)) AND (CASE WHEN (_hyper_1_1_chunk.value = '2'::double precision) THEN NULL::smallint ELSE NULL::smallint END = (13)))
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
    ->  Hash
          ->  Limit
@@ -789,10 +789,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Expression over both a grouping column and an aggregate.
@@ -804,10 +804,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Duplicate identical aggregates.
@@ -819,10 +819,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Aggregate listed before the grouping column in the select list.
@@ -834,10 +834,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.device
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Aggregate whose partial state type differs from its result type.
@@ -849,10 +849,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Grouping by a system column is not vectorized.
@@ -865,11 +865,11 @@ SHOW timescaledb.enable_vectorized_aggregation;
          ->  Append
                ->  Partial HashAggregate
                      Group Key: _hyper_1_1_chunk.tableoid
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Partial HashAggregate
                      Group Key: _hyper_1_2_chunk.tableoid
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Volatile expression over a grouping column in the select list.
@@ -881,10 +881,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Expressions over a grouping column computed by the finalize
@@ -897,10 +897,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 :EXPLAIN SELECT CASE value WHEN 0 THEN -1 ELSE value END AS sw, sum(value) FROM metrics GROUP BY value ORDER BY sw;
@@ -911,10 +911,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Volatile grouping expression is not vectorized.
@@ -925,11 +925,11 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Append
          ->  Partial HashAggregate
                Group Key: (_hyper_1_1_chunk.value + (((random() * '0'::double precision))::integer)::double precision)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Partial HashAggregate
                Group Key: (_hyper_1_2_chunk.value + (((random() * '0'::double precision))::integer)::double precision)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Volatile aggregate argument is not vectorized.
@@ -940,11 +940,11 @@ SHOW timescaledb.enable_vectorized_aggregation;
    ->  Append
          ->  Partial HashAggregate
                Group Key: _hyper_1_1_chunk.value
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Seq Scan on _hyper_1_1_chunk_compressed
          ->  Partial HashAggregate
                Group Key: _hyper_1_2_chunk.value
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Volatile aggregate filter is not vectorized.
@@ -958,11 +958,11 @@ SHOW timescaledb.enable_vectorized_aggregation;
                ->  Append
                      ->  Partial HashAggregate
                            Group Key: _hyper_1_1_chunk.value
-                           ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                                  ->  Seq Scan on _hyper_1_1_chunk_compressed
                      ->  Partial HashAggregate
                            Group Key: _hyper_1_2_chunk.value
-                           ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                                  ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 -- Volatile expression over an aggregate, computed once per group.
@@ -974,10 +974,10 @@ SHOW timescaledb.enable_vectorized_aggregation;
          Group Key: metrics.value
          ->  Append
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                            ->  Seq Scan on _hyper_1_1_chunk_compressed
                ->  Custom Scan (VectorAgg)
-                     ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+                     ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                            ->  Seq Scan on _hyper_1_2_chunk_compressed
 
 \set EXPLAIN ''
@@ -1013,7 +1013,7 @@ EXPLAIN (costs off) SELECT id, ts, label, sum(value) FROM fdmetrics GROUP BY id,
  Finalize GroupAggregate
    Group Key: _hyper_2_3_chunk.id, _hyper_2_3_chunk.ts
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_2_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_3_chunk
                ->  Index Scan using _hyper_2_3_chunk_compressed_id__ts_meta_v2_first_ts__ts_met_idx on _hyper_2_3_chunk_compressed
 
 SELECT id, ts, label, sum(value) FROM fdmetrics GROUP BY id, ts ORDER BY id, ts;
@@ -1072,7 +1072,7 @@ EXPLAIN (costs off) SELECT sum(value), label FROM fdmetrics GROUP BY id, ts ORDE
  Finalize GroupAggregate
    Group Key: _hyper_2_3_chunk.id, _hyper_2_3_chunk.ts
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_2_3_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_3_chunk
                ->  Index Scan using _hyper_2_3_chunk_compressed_id__ts_meta_v2_first_ts__ts_met_idx on _hyper_2_3_chunk_compressed
 
 SELECT sum(value), label FROM fdmetrics GROUP BY id, ts ORDER BY id, ts;

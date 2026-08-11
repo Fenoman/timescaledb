@@ -54,7 +54,7 @@ set enable_seqscan to off;
 explain (buffers off, costs off)
 select * from compressed_collation_ht order by name;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Index Scan using _hyper_1_1_chunk_compressed_name_idx on _hyper_1_1_chunk_compressed
 
 select * from compressed_collation_ht order by name;

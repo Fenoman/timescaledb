@@ -58,7 +58,7 @@ order by test.time;
 --- QUERY PLAN ---
  Nested Loop
    Join Filter: (((_hyper_1_1_chunk.a)::text = (test_copy.a)::text) AND (_hyper_1_1_chunk.b = test_copy.b))
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          Filter: (("time" >= 'Wed Jan 01 00:00:00 2020 PST'::timestamp with time zone) AND ("time" <= 'Wed Jan 01 00:02:00 2020 PST'::timestamp with time zone))
          ->  Sort
                Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_time
@@ -121,7 +121,7 @@ full join query_params q2
                        Filter: ((a)::text = ANY ('{lat,lon}'::text[]))
    ->  Hash Full Join
          Hash Cond: ((_hyper_1_1_chunk.a)::text = (q.a)::text)
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_a_b__ts_meta_v2_first_time__ts__idx on _hyper_1_1_chunk_compressed
          ->  Hash
                ->  CTE Scan on query_params q

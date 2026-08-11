@@ -2065,7 +2065,7 @@ select time_bucket('1 hour', ts) b, sum(v) from onechunkbucket group by b;
  Finalize HashAggregate
    Group Key: (time_bucket('@ 1 hour'::interval, _hyper_7_11_chunk.ts))
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
                ->  Seq Scan on _hyper_7_11_chunk_compressed
 
 select time_bucket('4 hours', ts) b, sum(v) from onechunkbucket group by b order by b;
@@ -2107,7 +2107,7 @@ group by host, b order by host, b desc;
  Finalize GroupAggregate
    Group Key: _hyper_7_11_chunk.host, (time_bucket('@ 1 hour'::interval, _hyper_7_11_chunk.ts))
    ->  Custom Scan (VectorAgg)
-         ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
                ->  Sort
                      Sort Key: _hyper_7_11_chunk_compressed.host, _hyper_7_11_chunk_compressed._ts_meta_v2_first_ts DESC, _hyper_7_11_chunk_compressed._ts_meta_v2_last_ts DESC
                      ->  Seq Scan on _hyper_7_11_chunk_compressed
@@ -2148,7 +2148,7 @@ select time_bucket('1 hour', ts) b, sum(v) from onechunkbucket group by b order 
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: time_bucket('@ 1 hour'::interval, _hyper_7_11_chunk.ts)
-   ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
          ->  Sort
                Sort Key: _hyper_7_11_chunk_compressed._ts_meta_v2_last_ts
                ->  Seq Scan on _hyper_7_11_chunk_compressed
@@ -2158,7 +2158,7 @@ select time_bucket('1 hour', ts) b, sum(v) from onechunkbucket group by b order 
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: time_bucket('@ 1 hour'::interval, _hyper_7_11_chunk.ts)
-   ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
          ->  Sort
                Sort Key: _hyper_7_11_chunk_compressed._ts_meta_v2_first_ts DESC
                ->  Seq Scan on _hyper_7_11_chunk_compressed
@@ -2183,7 +2183,7 @@ where current_setting('datestyle') <> '' group by b;
          One-Time Filter: (current_setting('datestyle'::text) <> ''::text)
          ->  Custom Scan (ChunkAppend) on onechunkbucket
                Chunks excluded during startup: 0
-               ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
                      ->  Seq Scan on _hyper_7_11_chunk_compressed
                            Filter: (current_setting('datestyle'::text) <> ''::text)
 
@@ -2215,7 +2215,7 @@ explain (costs off) execute onechunk_param(1);
          ->  Custom Scan (ChunkAppend) on onechunkbucket
                Order: time_bucket('@ 4 hours'::interval, onechunkbucket.ts)
                Chunks excluded during startup: 0
-               ->  Custom Scan (ColumnarScan) on _hyper_7_11_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_7_11_chunk
                      ->  Sort
                            Sort Key: _hyper_7_11_chunk_compressed._ts_meta_v2_last_ts
                            ->  Seq Scan on _hyper_7_11_chunk_compressed
@@ -2267,7 +2267,7 @@ where ts > now() - interval '10 years' group by b order by b limit 5;
                ->  Result
                      ->  Sort
                            Sort Key: (time_bucket('@ 1 min'::interval, _hyper_8_12_chunk.ts))
-                           ->  Custom Scan (ColumnarScan) on _hyper_8_12_chunk
+                           ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_8_12_chunk
                                  Vectorized Filter: (ts > (now() - '@ 10 years'::interval))
                                  ->  Seq Scan on _hyper_8_12_chunk_compressed
                                        Filter: (_ts_meta_max_2 > (now() - '@ 10 years'::interval))

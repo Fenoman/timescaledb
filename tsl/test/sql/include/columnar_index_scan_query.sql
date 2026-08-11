@@ -218,7 +218,7 @@ ORDER BY device;
 -- aggregate wrapped in COALESCE
 :PREFIX SELECT device, COALESCE(min(time), '2000-01-01'::timestamptz) FROM metrics GROUP BY device ORDER BY device;
 
--- aggregate above a JOIN (Agg not directly above ColumnarScan)
+-- aggregate above a JOIN (Agg not directly above TimescaleDBColumnarScan)
 :PREFIX SELECT m.device, min(m.time) FROM metrics m JOIN (VALUES ('d1'), ('d2')) AS d(device) ON m.device = d.device GROUP BY m.device ORDER BY m.device;
 
 -- ordered-set aggregate (not supported)
