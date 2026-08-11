@@ -825,7 +825,7 @@ cse_interning_expression_mutator(Node *node, void *context)
 	 * Recurse into children first (bottom-up) so that by the time we intern
 	 * this node, its children are already interned.
 	 */
-	Node *result = expression_tree_mutator(node, cse_interning_expression_mutator, context);
+	Node *result = ts_expression_tree_mutator(node, cse_interning_expression_mutator, context);
 
 	struct cse_interning_hash *table = (struct cse_interning_hash *) context;
 	bool found;

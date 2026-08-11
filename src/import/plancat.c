@@ -146,7 +146,7 @@ ts_build_indexlist(PlannerInfo *root, RelOptInfo *rel)
 		}
 
 		if (index->indcheckxmin &&
-			!TransactionIdPrecedes(HeapTupleHeaderGetXmin(indexRelation->rd_indextuple->t_data),
+			!TransactionIdPrecedes(ts_heaptuple_get_xmin(indexRelation->rd_indextuple),
 									TransactionXmin))
 		{
 			root->glob->transientPlan = true;

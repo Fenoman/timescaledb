@@ -329,19 +329,19 @@ set_dummy_rel_pathlist(RelOptInfo *rel)
 
 	/* Set up the dummy path */
 	add_path(rel,
-			 (Path *) create_append_path(/* root = */ NULL,
-										 rel,
 #if PG19_GE
-										 (AppendPathInput) { 0 },
+			 (Path *) create_append_path(/* root = */ NULL,
+									 rel,
+									 (AppendPathInput) { 0 },
+									 /* pathkeys = */ NIL,
+									 rel->lateral_relids,
+									 /* parallel_workers = */ 0,
+									 /* parallel_aware = */ false,
+									 /* rows = */ -1));
 #else
-										 /* subpaths = */ NIL,
-										 /* partial_subpaths = */ NIL,
+			 (Path *)
+				 ts_create_append_path(NULL, rel, NIL, NIL, NIL, rel->lateral_relids, 0, false, -1));
 #endif
-										 /* pathkeys = */ NIL,
-										 rel->lateral_relids,
-										 /* parallel_workers = */ 0,
-										 /* parallel_aware = */ false,
-										 /* rows = */ -1));
 
 	/*
 	 * We set the cheapest-path fields immediately, just in case they were
