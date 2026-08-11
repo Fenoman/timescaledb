@@ -2732,6 +2732,9 @@ find_matching_index(Relation comp_chunk_rel, List **index_filters, List **heap_f
 		{
 			*heap_filters = lappend(*heap_filters, sf);
 			*index_filters = list_delete_nth_cell(*index_filters, i);
+			/* The next element shifted into position i; re-examine it so it is
+			 * not skipped. */
+			i--;
 		}
 	}
 	if (ts_guc_debug_compression_path_info)
