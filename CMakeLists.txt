@@ -15,7 +15,7 @@ option(APACHE_ONLY "only compile apache code" off)
 option(REQUIRE_ALL_TESTS "Require all tests to run." OFF)
 option(USE_OPENSSL "Enable use of OpenSSL if available" ON)
 option(SEND_TELEMETRY_DEFAULT "The default value for whether to send telemetry"
-       ON)
+       OFF)
 option(
   USE_TELEMETRY
   "Include telemetry functionality in the build. Disabling will exclude all telemetry code from the build."
