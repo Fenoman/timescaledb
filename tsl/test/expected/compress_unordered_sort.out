@@ -55,7 +55,7 @@ SET timescaledb.enable_vectorized_aggregation = off;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select distinct device, sensor from metrics order by 1,2;
@@ -70,7 +70,7 @@ select distinct device, sensor from metrics order by 1,2;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select distinct on(device) device from metrics order by device;
@@ -83,7 +83,7 @@ select distinct on(device) device from metrics order by device;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select distinct on(device,sensor) device, sensor from metrics order by 1,2;
@@ -98,7 +98,7 @@ select distinct on(device,sensor) device, sensor from metrics order by 1,2;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
                      Index Cond: (sensor = 'A'::text)
 
@@ -112,7 +112,7 @@ select distinct on(device) device from metrics where sensor='A' order by device;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
                      Index Cond: (device = 'd2'::text)
 
@@ -126,7 +126,7 @@ select distinct on(device, sensor) device, sensor from metrics where device = 'd
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                Vectorized Filter: (value > '6'::double precision)
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
@@ -142,7 +142,7 @@ select distinct on(device, sensor) device, sensor from metrics where value > 6 o
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                Vectorized Filter: ("time" > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
                      Index Cond: (_ts_meta_v2_first_time > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)
@@ -160,7 +160,7 @@ select distinct device, sensor from metrics where time > '2025-01-01 01:00:00' o
 --- QUERY PLAN ---
  Group
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor from metrics group by device, sensor order by 1,2;
@@ -175,7 +175,7 @@ select device, sensor from metrics group by device, sensor order by 1,2;
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor, count(*), max(sensor) from metrics group by device, sensor order by 1,2;
@@ -190,7 +190,7 @@ select device, sensor, count(*), max(sensor) from metrics group by device, senso
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          Filter: (value > (length(sensor))::double precision)
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
@@ -206,7 +206,7 @@ select device, sensor, count(*) from metrics where value > length(sensor) group 
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          Vectorized Filter: ("time" > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
                Index Cond: (_ts_meta_v2_first_time > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)
@@ -224,7 +224,7 @@ select device, sensor, avg(value) from metrics where time > '2025-01-01 01:00:00
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor, max(sensor||'1'), min(time), max(time) + interval '1 day' from metrics group by device, sensor order by 1,2;
@@ -239,7 +239,7 @@ select device, sensor, max(sensor||'1'), min(time), max(time) + interval '1 day'
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor, avg(value+1), max(time) + make_interval(days => length(sensor)) from metrics group by device, sensor order by 1,2;
@@ -275,7 +275,7 @@ select device, sensor, count(*) from metrics group by device, sensor having coun
    ->  HashAggregate
          Group Key: _hyper_1_1_chunk.device, (_hyper_1_1_chunk.sensor || '1'::text)
          ->  Result
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor||'1', min(time), max(time) from metrics group by device, sensor||'1' order by 1,2;
@@ -323,7 +323,7 @@ select device, sensor, first(time,time) from metrics group by device, sensor ord
 --- QUERY PLAN ---
  Group
    Group Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk.sensor, _hyper_1_1_chunk."time"
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select device, sensor, time from metrics group by device, sensor, time order by 1,2, time DESC;
@@ -351,7 +351,7 @@ select device, sensor, time from metrics group by device, sensor, time order by 
  Unique
    ->  Sort
          Sort Key: _hyper_1_1_chunk.device, _hyper_1_1_chunk."time" DESC
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
 
 select distinct on (device) device, time from metrics order by device, time DESC;
@@ -366,7 +366,7 @@ SET timescaledb.debug_require_batch_sorted_merge = 'force';
 --- QUERY PLAN ---
  GroupAggregate
    Group Key: _hyper_1_1_chunk."time"
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device_sensor__ts_meta_v2_first_idx on _hyper_1_1_chunk_compressed
                Index Cond: ((device = 'd1'::text) AND (sensor = 'A'::text))
 
@@ -415,7 +415,7 @@ WHERE h.id = ch.hypertable_id AND h.table_name = 'metrics2';
    Sort Key: _hyper_2_2_chunk."time" DESC
    ->  HashAggregate
          Group Key: _hyper_2_2_chunk."time"
-         ->  Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
                Vectorized Filter: ("time" > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)
                ->  Index Scan using _hyper_2_2_chunk_compressed__ts_meta_v2_first_time__ts_meta_idx on _hyper_2_2_chunk_compressed
                      Index Cond: (_ts_meta_v2_first_time > 'Wed Jan 01 01:00:00 2025 UTC'::timestamp with time zone)

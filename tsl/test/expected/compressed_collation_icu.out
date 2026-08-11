@@ -23,7 +23,7 @@ select count(compress_chunk(ch)) from show_chunks('t_nocase') ch;
 -- the comparison cannot be a vectorized filter
 explain (costs off) select label from t_nocase where label = 'MERLOT' collate nocase;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    Filter: (label = 'MERLOT'::text COLLATE nocase)
    ->  Seq Scan on _hyper_1_1_chunk_compressed
 
