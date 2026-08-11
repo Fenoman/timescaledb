@@ -1099,7 +1099,7 @@ skip_scan_path_create(PlannerInfo *root, Path *child_path, DistinctPathInfo *dpi
 			Selectivity qual_selectivity =
 				Max(1.0 / (rows + 1),
 					clauselist_selectivity(root, clauses_needing_scan, 0, JOIN_INNER, NULL));
-			offset_until_qual_pass = Max(0, floor(1 / qual_selectivity));
+			offset_until_qual_pass = Max(0, floor(1 / qual_selectivity) - 1);
 		}
 		adjust_limit_rows_costs(&rows, &startup, &total, offset_until_qual_pass, 1);
 

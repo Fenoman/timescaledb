@@ -7531,6 +7531,34 @@ DEALLOCATE prep;
 
 RESET max_parallel_workers_per_gather;
 RESET enable_seqscan;
+SET max_parallel_workers_per_gather = 0;
+SET enable_seqscan = false;
+EXPLAIN (buffers off, timing off, summary off)
+SELECT DISTINCT ON (dev) dev, time
+FROM skip_scan_htcl
+WHERE time > 5
+ORDER BY dev, time DESC;
+--- QUERY PLAN ---
+ Unique  (cost=1.94..7.16 rows=200 width=8)
+   ->  Merge Append  (cost=1.94..7.05 rows=44 width=8)
+         Sort Key: skip_scan_htcl.dev, skip_scan_htcl."time" DESC
+         ->  Custom Scan (SkipScan) on _hyper_3_9_chunk  (cost=0.63..1.74 rows=11 width=8)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_9_chunk  (cost=0.43..253.33 rows=2500 width=8)
+                     Filter: ("time" > 5)
+                     ->  Index Scan using _hyper_3_9_chunk_compressed_dev__ts_meta_v2_first_time__ts__idx on _hyper_3_9_chunk_compressed  (cost=0.14..3.33 rows=11 width=48)
+                           Index Cond: (_ts_meta_v2_first_time > 5)
+         ->  Custom Scan (SkipScan) on _hyper_3_10_chunk  (cost=0.42..1.54 rows=11 width=8)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_10_chunk  (cost=0.42..253.30 rows=2500 width=8)
+                     ->  Index Scan using _hyper_3_10_chunk_compressed_dev__ts_meta_v2_first_time__ts_idx on _hyper_3_10_chunk_compressed  (cost=0.14..3.30 rows=11 width=48)
+         ->  Custom Scan (SkipScan) on _hyper_3_11_chunk  (cost=0.42..1.54 rows=11 width=8)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_11_chunk  (cost=0.42..253.30 rows=2500 width=8)
+                     ->  Index Scan using _hyper_3_11_chunk_compressed_dev__ts_meta_v2_first_time__ts_idx on _hyper_3_11_chunk_compressed  (cost=0.14..3.30 rows=11 width=48)
+         ->  Custom Scan (SkipScan) on _hyper_3_12_chunk  (cost=0.42..1.54 rows=11 width=8)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_12_chunk  (cost=0.42..253.30 rows=2500 width=8)
+                     ->  Index Scan using _hyper_3_12_chunk_compressed_dev__ts_meta_v2_first_time__ts_idx on _hyper_3_12_chunk_compressed  (cost=0.14..3.30 rows=11 width=48)
+
+RESET enable_seqscan;
+RESET max_parallel_workers_per_gather;
 -- try one query with EXPLAIN only for coverage
 EXPLAIN (buffers off, costs off, timing off, summary off) SELECT DISTINCT ON (dev_name) dev_name FROM skip_scan;
 --- QUERY PLAN ---
