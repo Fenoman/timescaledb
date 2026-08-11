@@ -415,6 +415,61 @@ psql:include/cagg_rewrites_query.sql:165: INFO:  Subquery "unnamed_subquery" was
 \o
 SET timescaledb.enable_cagg_rewrites = 0;
 SET timescaledb.cagg_rewrites_debug_info = 0;
+EXPLAIN (buffers off, costs off, timing off, summary off)
+SELECT time_bucket(INTERVAL '2 day', day) AS bucket, count(device_id)
+FROM conditions
+GROUP BY bucket
+ORDER BY 1
+LIMIT 3;
+--- QUERY PLAN ---
+ Limit
+   ->  Finalize GroupAggregate
+         Group Key: (time_bucket('@ 2 days'::interval, conditions.day))
+         ->  Custom Scan (ChunkAppend) on conditions
+               Order: time_bucket('@ 2 days'::interval, conditions.day)
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_1_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_1_chunk_conditions_day_idx on _hyper_1_1_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_2_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_2_chunk_conditions_day_idx on _hyper_1_2_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_3_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_3_chunk_conditions_day_idx on _hyper_1_3_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_4_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_4_chunk_conditions_day_idx on _hyper_1_4_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_5_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_5_chunk_conditions_day_idx on _hyper_1_5_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_6_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_6_chunk_conditions_day_idx on _hyper_1_6_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_7_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_7_chunk_conditions_day_idx on _hyper_1_7_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_8_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_8_chunk_conditions_day_idx on _hyper_1_8_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_9_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_9_chunk_conditions_day_idx on _hyper_1_9_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_10_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_10_chunk_conditions_day_idx on _hyper_1_10_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_11_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_11_chunk_conditions_day_idx on _hyper_1_11_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_12_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_12_chunk_conditions_day_idx on _hyper_1_12_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_13_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_13_chunk_conditions_day_idx on _hyper_1_13_chunk
+               ->  Partial GroupAggregate
+                     Group Key: time_bucket('@ 2 days'::interval, _hyper_1_14_chunk.day)
+                     ->  Index Scan Backward using _hyper_1_14_chunk_conditions_day_idx on _hyper_1_14_chunk
+
 \o :TEST_RESULTS_NOT_REWRITTEN
 \ir :TEST_QUERY_NAME
 -- This file and its contents are licensed under the Timescale License.
