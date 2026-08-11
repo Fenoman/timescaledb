@@ -95,16 +95,27 @@ static ExecutorRun_hook_type previous_executor_run_hook = NULL;
 static bool explain_in_executor_run_enabled = false;
 
 static void
-test_explain_in_executor_run(QueryDesc *query_desc, ScanDirection direction, uint64 count,
-							 bool execute_once)
+test_explain_in_executor_run(QueryDesc *query_desc, ScanDirection direction, uint64 count
+#if PG18_LT
+							 , bool execute_once
+#endif
+)
 {
 	if (previous_executor_run_hook)
 	{
-		previous_executor_run_hook(query_desc, direction, count, execute_once);
+		previous_executor_run_hook(query_desc, direction, count
+#if PG18_LT
+							   , execute_once
+#endif
+		);
 	}
 	else
 	{
-		standard_ExecutorRun(query_desc, direction, count, execute_once);
+		standard_ExecutorRun(query_desc, direction, count
+#if PG18_LT
+							 , execute_once
+#endif
+		);
 	}
 
 	if (explain_in_executor_run_enabled &&
