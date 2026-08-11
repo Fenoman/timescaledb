@@ -632,10 +632,9 @@ FROM show_chunks('recompress_index_match') c \gset
 SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk')::text AS good_idx \gset
 SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk') IS NOT NULL AS initial_index_found;
 DROP INDEX :good_idx;
-SELECT format('%I.%I', cc.schema_name, cc.table_name) AS compressed_chunk
-FROM _timescaledb_catalog.chunk uc
-JOIN _timescaledb_catalog.chunk cc ON uc.compressed_chunk_id = cc.id
-WHERE format('%I.%I', uc.schema_name, uc.table_name)::regclass = :'uncompressed_chunk'::regclass \gset
+SELECT compress_relid::text AS compressed_chunk
+FROM _timescaledb_catalog.compression_settings
+WHERE relid = :'uncompressed_chunk'::regclass \gset
 CREATE INDEX recompress_index_match_wrong_idx ON :compressed_chunk
 	(s1, s1, _ts_meta_v2_first_time, _ts_meta_v2_last_time);
 SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk') IS NULL AS missing_last_segmentby_rejected;
