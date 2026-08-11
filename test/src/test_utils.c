@@ -8,7 +8,9 @@
 #include <postgres.h>
 
 #include <compat/compat.h>
+#include <commands/explain.h>
 #include <commands/dbcommands.h>
+#include <executor/executor.h>
 #if PG19_GE
 #include <catalog/pg_database.h>
 #endif
@@ -24,11 +26,205 @@
 
 #include "debug_point.h"
 #include "extension_constants.h"
+#include "nodes/modify_hypertable.h"
 #include "utils.h"
 
 TS_FUNCTION_INFO_V1(ts_test_error_injection);
 TS_FUNCTION_INFO_V1(ts_debug_shippable_error_after_n_rows);
 TS_FUNCTION_INFO_V1(ts_debug_shippable_fatal_after_n_rows);
+
+/*
+ * Reproduce extensions which inspect a plan immediately after ExecutorStart
+ * has initialized it. In particular, ModifyHypertable defers creation of its
+ * ChunkTupleRouting state until the first executor call, so an early EXPLAIN
+ * must tolerate a NULL state->ctr.
+ *
+ * The analyze flavor reproduces extensions which set analyze in their own
+ * ExplainState regardless of whether the executor was started with
+ * instrumentation, so explain callbacks must tolerate a NULL instrument.
+ */
+static ExecutorStart_hook_type previous_executor_start_hook = NULL;
+static bool explain_in_executor_start_enabled = false;
+static bool explain_analyze_in_executor_start_enabled = false;
+
+static void
+test_explain_in_executor_start(QueryDesc *query_desc, int eflags)
+{
+	if (previous_executor_start_hook)
+	{
+		previous_executor_start_hook(query_desc, eflags);
+	}
+	else
+	{
+		standard_ExecutorStart(query_desc, eflags);
+	}
+
+	if (explain_in_executor_start_enabled &&
+		(query_desc->operation == CMD_INSERT || query_desc->operation == CMD_MERGE))
+	{
+		ExplainState *es = NewExplainState();
+		ExplainPrintPlan(es, query_desc);
+	}
+
+	if (explain_analyze_in_executor_start_enabled && query_desc->operation == CMD_SELECT)
+	{
+		ExplainState *es = NewExplainState();
+		es->analyze = true;
+		es->verbose = true;
+		ExplainPrintPlan(es, query_desc);
+	}
+}
+
+static void
+update_explain_in_executor_start_hook(void)
+{
+	bool enable =
+		explain_in_executor_start_enabled || explain_analyze_in_executor_start_enabled;
+	bool installed = ExecutorStart_hook == test_explain_in_executor_start;
+
+	if (enable && !installed)
+	{
+		previous_executor_start_hook = ExecutorStart_hook;
+		ExecutorStart_hook = test_explain_in_executor_start;
+	}
+	else if (!enable && installed)
+	{
+		ExecutorStart_hook = previous_executor_start_hook;
+		previous_executor_start_hook = NULL;
+	}
+}
+
+TS_TEST_FN(ts_test_enable_explain_in_executor_start)
+{
+	explain_in_executor_start_enabled = true;
+	update_explain_in_executor_start_hook();
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_disable_explain_in_executor_start)
+{
+	explain_in_executor_start_enabled = false;
+	update_explain_in_executor_start_hook();
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_enable_explain_analyze_in_executor_start)
+{
+	explain_analyze_in_executor_start_enabled = true;
+	update_explain_in_executor_start_hook();
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_disable_explain_analyze_in_executor_start)
+{
+	explain_analyze_in_executor_start_enabled = false;
+	update_explain_in_executor_start_hook();
+
+	PG_RETURN_VOID();
+}
+
+/*
+ * Reproduce extensions which inspect an executed plan more than once before
+ * ExecutorEnd. ModifyHypertable's EXPLAIN callback must leave both its saved
+ * targetlists and its accumulated counters unchanged by the second poll.
+ */
+static ExecutorRun_hook_type previous_executor_run_hook = NULL;
+static bool explain_in_executor_run_enabled = false;
+
+static void
+test_explain_in_executor_run(QueryDesc *query_desc, ScanDirection direction, uint64 count
+#if PG18_LT
+							 , bool execute_once
+#endif
+)
+{
+	if (previous_executor_run_hook)
+	{
+		previous_executor_run_hook(query_desc, direction, count
+#if PG18_LT
+							   , execute_once
+#endif
+		);
+	}
+	else
+	{
+		standard_ExecutorRun(query_desc, direction, count
+#if PG18_LT
+							 , execute_once
+#endif
+		);
+	}
+
+	if (explain_in_executor_run_enabled &&
+		(query_desc->operation == CMD_DELETE || query_desc->operation == CMD_INSERT))
+	{
+		PlanState *planstate = query_desc->planstate;
+		if (!ts_is_modify_hypertable_plan(planstate->plan))
+		{
+			elog(ERROR, "expected a ModifyHypertable plan");
+		}
+
+		ModifyHypertableState *state = (ModifyHypertableState *) planstate;
+		if (query_desc->operation == CMD_INSERT)
+		{
+			Assert(state->ctr != NULL && state->ctr->counters != NULL);
+			state->ctr->counters->batches_scanned = 1;
+		}
+
+		ExplainState *es = NewExplainState();
+		es->verbose = true;
+		ExplainPrintPlan(es, query_desc);
+		List *saved_tlist = state->explain_saved_tlist;
+		List *saved_custom_scan_tlist = state->explain_saved_custom_scan_tlist;
+		if (query_desc->operation == CMD_DELETE && saved_tlist == NULL)
+		{
+			elog(ERROR, "runtime EXPLAIN did not save a ModifyHypertable targetlist");
+		}
+		ExplainPrintPlan(es, query_desc);
+
+		if (query_desc->operation == CMD_DELETE &&
+			(state->explain_saved_tlist != saved_tlist ||
+			 (saved_custom_scan_tlist &&
+			  state->explain_saved_custom_scan_tlist != saved_custom_scan_tlist)))
+		{
+			elog(ERROR, "repeated runtime EXPLAIN lost the ModifyHypertable targetlist");
+		}
+		if (query_desc->operation == CMD_INSERT && state->batches_scanned != 1)
+		{
+			elog(ERROR,
+				 "repeated runtime EXPLAIN double-counted counters: expected 1, got %lld",
+				 (long long) state->batches_scanned);
+		}
+	}
+}
+
+TS_TEST_FN(ts_test_enable_explain_in_executor_run)
+{
+	if (!explain_in_executor_run_enabled)
+	{
+		previous_executor_run_hook = ExecutorRun_hook;
+		ExecutorRun_hook = test_explain_in_executor_run;
+		explain_in_executor_run_enabled = true;
+	}
+
+	PG_RETURN_VOID();
+}
+
+TS_TEST_FN(ts_test_disable_explain_in_executor_run)
+{
+	if (explain_in_executor_run_enabled)
+	{
+		Assert(ExecutorRun_hook == test_explain_in_executor_run);
+		ExecutorRun_hook = previous_executor_run_hook;
+		previous_executor_run_hook = NULL;
+		explain_in_executor_run_enabled = false;
+	}
+
+	PG_RETURN_VOID();
+}
 
 /*
  * Test assertion macros.
