@@ -207,7 +207,7 @@ Composite bloom column:  regress-test-bloom_d3fa_device_id_sensor_type
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 SELECT * FROM composite_filter_test WHERE device_id = 1 AND sensor_type = 'temp';
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk (actual rows=1300.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk (actual rows=1300.00 loops=1)
    Vectorized Filter: ((device_id = 1) AND (sensor_type = 'temp'::text))
    Rows Removed by Filter: 600
    ->  Seq Scan on _hyper_1_1_chunk_compressed (actual rows=2.00 loops=1)
@@ -223,7 +223,7 @@ SELECT * FROM composite_filter_test WHERE device_id = 1 AND sensor_type = 'temp'
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 SELECT * FROM composite_filter_test WHERE device_id = 2 AND sensor_type = 'humidity';
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk (actual rows=1300.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk (actual rows=1300.00 loops=1)
    Vectorized Filter: ((device_id = 2) AND (sensor_type = 'humidity'::text))
    Rows Removed by Filter: 600
    ->  Seq Scan on _hyper_1_1_chunk_compressed (actual rows=2.00 loops=1)
@@ -235,7 +235,7 @@ SELECT * FROM composite_filter_test WHERE device_id = 2 AND sensor_type = 'humid
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 SELECT * FROM composite_filter_test WHERE device_id = 5 AND sensor_type = 'temp';
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk (actual rows=0.00 loops=1)
    Vectorized Filter: ((device_id = 5) AND (sensor_type = 'temp'::text))
    ->  Seq Scan on _hyper_1_1_chunk_compressed (actual rows=0.00 loops=1)
          Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_d3fa_device_id_sensor_type, TEST-HASHES::bigint[])
@@ -248,7 +248,7 @@ SELECT * FROM composite_filter_test WHERE device_id = 5 AND sensor_type = 'temp'
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 SELECT * FROM composite_filter_test WHERE device_id = 1 AND sensor_type = 'humidity';
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk (actual rows=0.00 loops=1)
    Vectorized Filter: ((device_id = 1) AND (sensor_type = 'humidity'::text))
    ->  Seq Scan on _hyper_1_1_chunk_compressed (actual rows=0.00 loops=1)
          Filter: _timescaledb_functions.bloom1_contains_any_hashes(regress-test-bloom_d3fa_device_id_sensor_type, TEST-HASHES::bigint[])

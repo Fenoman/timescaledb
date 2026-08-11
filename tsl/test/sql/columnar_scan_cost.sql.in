@@ -2,7 +2,7 @@
 -- Please see the included NOTICE for copyright information and
 -- LICENSE-TIMESCALE for a copy of the license.
 
--- Some primitive tests that show cost of ColumnarScan node so that we can
+-- Some primitive tests that show cost of TimescaleDBColumnarScan node so that we can
 -- monitor the changes.
 
 create table costtab(ts int, s text, c text, ti text, fi float);

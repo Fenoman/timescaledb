@@ -357,7 +357,7 @@ SELECT DISTINCT _timescaledb_functions.chunk_status_text(chunk) FROM show_chunks
 ROLLBACK;
 
 -- test INSERT SELECT from compressed source into compressed target
--- this tests that reading from ColumnarScan correctly copies all rows
+-- this tests that reading from TimescaleDBColumnarScan correctly copies all rows
 SET timescaledb.enable_direct_compress_insert = true;
 SET timescaledb.enable_direct_compress_insert_client_sorted = true;
 

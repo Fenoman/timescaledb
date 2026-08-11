@@ -143,10 +143,10 @@ select sum(t), s, count(*) from svagg group by s order by s;
    ->  Custom Scan (ChunkAppend) on svagg
          Order: svagg.s
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      ->  Index Scan using _hyper_1_1_chunk_compressed_s__ts_meta_v2_first_t__ts_meta__idx on _hyper_1_1_chunk_compressed
          ->  Custom Scan (VectorAgg)
-               ->  Custom Scan (ColumnarScan) on _hyper_1_2_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_2_chunk
                      ->  Index Scan using _hyper_1_2_chunk_compressed_s__ts_meta_v2_first_t__ts_meta__idx on _hyper_1_2_chunk_compressed
 
 select sum(t) from svagg group by s order by 1;

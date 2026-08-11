@@ -111,7 +111,7 @@ set timescaledb.debug_require_batch_sorted_merge to 'force';
 :PREFIX
 SELECT * FROM test1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -127,7 +127,7 @@ SELECT * FROM test1 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 ORDER BY time DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -143,7 +143,7 @@ SELECT * FROM test1 ORDER BY time DESC NULLS FIRST;
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -160,7 +160,7 @@ SELECT * FROM test1 ORDER BY time ASC;
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -177,7 +177,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test1 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -193,7 +193,7 @@ SELECT * FROM test1 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test1 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST, x4 ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -209,7 +209,7 @@ SELECT * FROM test1 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST, x4 ASC NU
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -226,7 +226,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC NULLS LAST, x3 DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -243,7 +243,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS LAST, x3 DESC NULLS FIRST;
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC NULLS LAST, x3 DESC NULLS FIRST, x4 DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -260,7 +260,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS LAST, x3 DESC NULLS FIRST, x4 DESC N
 :PREFIX
 SELECT * FROM test2 ORDER BY time ASC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -276,7 +276,7 @@ SELECT * FROM test2 ORDER BY time ASC;
 :PREFIX
 SELECT * FROM test2 ORDER BY time ASC, x3 DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -292,7 +292,7 @@ SELECT * FROM test2 ORDER BY time ASC, x3 DESC;
 :PREFIX
 SELECT * FROM test2 ORDER BY time ASC, x3 DESC, x4 DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -308,7 +308,7 @@ SELECT * FROM test2 ORDER BY time ASC, x3 DESC, x4 DESC;
 :PREFIX
 SELECT * FROM test2 ORDER BY time DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -325,7 +325,7 @@ SELECT * FROM test2 ORDER BY time DESC NULLS FIRST;
 :PREFIX
 SELECT * FROM test2 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -342,7 +342,7 @@ SELECT * FROM test2 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test2 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST, x4 NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -359,7 +359,7 @@ SELECT * FROM test2 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST, x4 NULLS 
 :PREFIX
 SELECT * FROM test_with_defined_null WHERE x2 IS NOT NULL ORDER BY x2 ASC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Filter: (_hyper_3_3_chunk.x2 IS NOT NULL)
    Rows Removed by Filter: 6
@@ -382,7 +382,7 @@ SELECT * FROM test_with_defined_null WHERE x2 IS NOT NULL ORDER BY x2 ASC NULLS 
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Vectorized Filter: (_hyper_3_3_chunk.x2 IS NOT NULL)
          Rows Removed by Filter: 6
@@ -397,7 +397,7 @@ set timescaledb.debug_require_batch_sorted_merge to 'force';
 :PREFIX
 SELECT * FROM test_with_defined_null  WHERE (x2 + 1) IS NOT NULL ORDER BY x2 DESC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Filter: ((_hyper_3_3_chunk.x2 + 1) IS NOT NULL)
    Rows Removed by Filter: 6
@@ -416,7 +416,7 @@ SELECT * FROM test_with_defined_null  WHERE (x2 + 1) IS NOT NULL ORDER BY x2 DES
 :PREFIX
 SELECT * FROM test_with_defined_null WHERE x2 > 0 ORDER BY x2 ASC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Filter: (_hyper_3_3_chunk.x2 > 0)
    Rows Removed by Filter: 3
@@ -435,7 +435,7 @@ SELECT * FROM test_with_defined_null WHERE x2 > 0 ORDER BY x2 ASC NULLS FIRST;
 :PREFIX
 SELECT * FROM test_with_defined_null WHERE x2::float + x1 > 1.0  AND time = '2000-01-01' ORDER BY x2 ASC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Filter: ((_hyper_3_3_chunk."time" = 'Sat Jan 01 00:00:00 2000 PST'::timestamp with time zone) AND (((_hyper_3_3_chunk.x2)::double precision + (_hyper_3_3_chunk.x1)::double precision) > '1'::double precision))
    Rows Removed by Filter: 6
@@ -459,7 +459,7 @@ SELECT * FROM test2 ORDER BY time DESC NULLS LAST, x3 DESC NULLS FIRST, x4 NULLS
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Sort Key: _hyper_2_2_chunk."time" DESC NULLS LAST, _hyper_2_2_chunk.x3 DESC, _hyper_2_2_chunk.x4 NULLS FIRST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
          Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -474,7 +474,7 @@ SELECT * FROM test2 ORDER BY time DESC NULLS LAST, x3 DESC NULLS LAST, x4 NULLS 
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Sort Key: _hyper_2_2_chunk."time" DESC NULLS LAST, _hyper_2_2_chunk.x3 DESC NULLS LAST, _hyper_2_2_chunk.x4 NULLS FIRST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
          Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -489,7 +489,7 @@ SELECT * FROM test1 ORDER BY time DESC NULLS LAST;
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time" DESC NULLS LAST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -504,7 +504,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS FIRST;
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time" NULLS FIRST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -519,7 +519,7 @@ SELECT * FROM test1 ORDER BY time DESC NULLS FIRST, x3 ASC NULLS LAST, x4 DESC N
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time" DESC, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4 DESC
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -534,7 +534,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS FIRST, x3 DESC NULLS LAST, x4 ASC;
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time" NULLS FIRST, _hyper_1_1_chunk.x3 DESC NULLS LAST, _hyper_1_1_chunk.x4
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -549,7 +549,7 @@ SELECT * FROM test2 ORDER BY time ASC, x3 ASC NULLS LAST, x4 DESC;
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Sort Key: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4 DESC
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
          Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -564,7 +564,7 @@ SELECT * FROM test2 ORDER BY time ASC, x3 ASC NULLS FIRST, x4 DESC;
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Sort Key: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x3 NULLS FIRST, _hyper_2_2_chunk.x4 DESC
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=12.00 loops=1)
          Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -579,7 +579,7 @@ SELECT * FROM test_with_defined_null ORDER BY x2 ASC;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -593,7 +593,7 @@ SELECT * FROM test_with_defined_null ORDER BY x2 ASC NULLS LAST;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -607,7 +607,7 @@ SELECT * FROM test_with_defined_null ORDER BY x2 DESC NULLS FIRST;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2 DESC
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -621,7 +621,7 @@ SELECT * FROM test_with_defined_null ORDER BY x2 DESC;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2 DESC
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=12.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -636,7 +636,7 @@ SELECT * FROM test_with_defined_null WHERE x2 IS NOT NULL OR x2 > 1 ORDER BY x2;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=6.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Vectorized Filter: ((_hyper_3_3_chunk.x2 IS NOT NULL) OR (_hyper_3_3_chunk.x2 > 1))
          Rows Removed by Filter: 6
@@ -653,7 +653,7 @@ SELECT * FROM test_with_defined_null WHERE x2 IS NULL OR x2 > 1 ORDER BY x2;
    Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
    Sort Key: _hyper_3_3_chunk.x2
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=9.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_3_chunk (actual rows=9.00 loops=1)
          Output: _hyper_3_3_chunk."time", _hyper_3_3_chunk.x1, _hyper_3_3_chunk.x2, _hyper_3_3_chunk.x3
          Vectorized Filter: ((_hyper_3_3_chunk.x2 IS NULL) OR (_hyper_3_3_chunk.x2 > 1))
          Rows Removed by Filter: 3
@@ -670,7 +670,7 @@ set timescaledb.debug_require_batch_sorted_merge to 'force';
 :PREFIX
 SELECT * FROM test1 WHERE x4 > 0 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Filter: (_hyper_1_1_chunk.x4 > 0)
    Chunk Status: UNORDERED
@@ -688,7 +688,7 @@ SELECT * FROM test1 WHERE x4 > 0 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Filter: (_hyper_1_1_chunk.x4 > 100)
    Chunk Status: UNORDERED
@@ -707,7 +707,7 @@ SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x3, x4;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Filter: (_hyper_1_1_chunk.x4 > 100)
    Chunk Status: UNORDERED
@@ -726,7 +726,7 @@ SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x3, x4;
 :PREFIX
 SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x3, x3;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Filter: (_hyper_1_1_chunk.x4 > 100)
    Chunk Status: UNORDERED
@@ -745,7 +745,7 @@ SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x3, x3;
 :PREFIX
 SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x3, x4, x3, x4;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Filter: (_hyper_1_1_chunk.x4 > 100)
    Chunk Status: UNORDERED
@@ -769,7 +769,7 @@ SELECT * FROM test1 WHERE x4 > 100 ORDER BY time DESC, x4, x3;
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time" DESC, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x3
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Vectorized Filter: (_hyper_1_1_chunk.x4 > 100)
          Chunk Status: UNORDERED
@@ -787,7 +787,7 @@ SELECT * FROM test1 WHERE x4 > 100 ORDER BY time ASC, x3, x4;
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
    Sort Key: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=0.00 loops=1)
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5
          Vectorized Filter: (_hyper_1_1_chunk.x4 > 100)
          Chunk Status: UNORDERED
@@ -1019,7 +1019,7 @@ EXPLAIN (verbose, buffers off, costs off) SELECT 1 as one, 2 as two, 3 as three,
 --- QUERY PLAN ---
  Result
    Output: 1, 2, 3, _hyper_1_1_chunk."time", _hyper_1_1_chunk.x2
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
          Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x2
          Chunk Status: UNORDERED
          Batch Sorted Merge: true
@@ -1050,7 +1050,7 @@ EXPLAIN (verbose, buffers off, costs off) SELECT 1 as one, 2 as two, 3 as three,
 --- QUERY PLAN ---
  Result
    Output: 1, 2, 3, _hyper_1_1_chunk.x2, _hyper_1_1_chunk."time"
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
          Output: _hyper_1_1_chunk.x2, _hyper_1_1_chunk."time"
          Chunk Status: UNORDERED
          Batch Sorted Merge: true
@@ -1170,7 +1170,7 @@ SELECT * FROM test1 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5, _hyper_1_1_chunk.c1, _hyper_1_1_chunk.c2
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1202,7 +1202,7 @@ SELECT * FROM test1 ORDER BY time DESC;
 :PREFIX
 SELECT time, x2, x1, c2 FROM test1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x1, _hyper_1_1_chunk.c2
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1234,7 +1234,7 @@ SELECT time, x2, x1, c2 FROM test1 ORDER BY time DESC;
 :PREFIX
 SELECT x2, x1, c2, time FROM test1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x1, _hyper_1_1_chunk.c2, _hyper_1_1_chunk."time"
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1268,7 +1268,7 @@ SELECT 1 as one, 2 as two, 3 as three, x2, x1, c2, time FROM test1 ORDER BY time
 --- QUERY PLAN ---
  Result (actual rows=12.00 loops=1)
    Output: 1, 2, 3, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x1, _hyper_1_1_chunk.c2, _hyper_1_1_chunk."time"
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
          Output: _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x1, _hyper_1_1_chunk.c2, _hyper_1_1_chunk."time"
          Chunk Status: UNORDERED
          Batch Sorted Merge: true
@@ -1372,7 +1372,7 @@ set timescaledb.debug_require_batch_sorted_merge to 'force';
 :PREFIX
 SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5, _hyper_1_1_chunk.c1, _hyper_1_1_chunk.c2
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1399,7 +1399,7 @@ SELECT * FROM test1 ORDER BY time ASC NULLS LAST;
    Runtime Exclusion: false
    ->  Merge Append (actual rows=13.00 loops=1)
          Sort Key: test1."time"
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=12.00 loops=1)
                Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5, _hyper_1_1_chunk.c1, _hyper_1_1_chunk.c2
                Chunk Status: UNORDERED, PARTIAL
                Batch Sorted Merge: true
@@ -1467,7 +1467,7 @@ set timescaledb.debug_require_batch_sorted_merge to 'force';
 :PREFIX
 SELECT * FROM test_segby ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1483,7 +1483,7 @@ SELECT * FROM test_segby ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test_segby ORDER BY time DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1499,7 +1499,7 @@ SELECT * FROM test_segby ORDER BY time DESC NULLS FIRST;
 :PREFIX
 SELECT * FROM test_segby ORDER BY time ASC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1516,7 +1516,7 @@ SELECT * FROM test_segby ORDER BY time ASC;
 :PREFIX
 SELECT * FROM test_segby ORDER BY time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1533,7 +1533,7 @@ SELECT * FROM test_segby ORDER BY time ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test_segby ORDER BY time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1555,7 +1555,7 @@ SELECT * FROM test_segby ORDER BY time DESC NULLS LAST;
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Sort Key: _hyper_4_4_chunk."time" DESC NULLS LAST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
          Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -1570,7 +1570,7 @@ SELECT * FROM test_segby ORDER BY time ASC NULLS FIRST;
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Sort Key: _hyper_4_4_chunk."time" NULLS FIRST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
          Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -1660,7 +1660,7 @@ SET enable_bitmapscan=0;
 :PREFIX
 SELECT * FROM test_segby WHERE segby = 1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=9.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=9.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1672,7 +1672,7 @@ SELECT * FROM test_segby WHERE segby = 1 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1, x2, x5, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=6.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5, _hyper_1_1_chunk.c1, _hyper_1_1_chunk.c2
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1685,7 +1685,7 @@ SELECT * FROM test1 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1, x2, x5, time
 :PREFIX
 SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY time ASC, x3 DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1701,7 +1701,7 @@ SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY time ASC, x3 DES
 :PREFIX
 SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1 DESC, x2 DESC, x5 DESC, time DESC, x3 ASC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1722,7 +1722,7 @@ SET enable_seqscan=1;
 :PREFIX
 SELECT * FROM test_segby WHERE segby = 1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=9.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=9.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1739,7 +1739,7 @@ SELECT * FROM test_segby WHERE segby = 1 ORDER BY time DESC;
 :PREFIX
 SELECT * FROM test1 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1, x2, x5, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=6.00 loops=1)
    Output: _hyper_1_1_chunk."time", _hyper_1_1_chunk.x1, _hyper_1_1_chunk.x2, _hyper_1_1_chunk.x3, _hyper_1_1_chunk.x4, _hyper_1_1_chunk.x5, _hyper_1_1_chunk.c1, _hyper_1_1_chunk.c2
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1756,7 +1756,7 @@ SELECT * FROM test1 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1, x2, x5, time
 :PREFIX
 SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY time ASC, x3 DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1773,7 +1773,7 @@ SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY time ASC, x3 DES
 :PREFIX
 SELECT * FROM test2 WHERE x1 = 1 AND x2 = 2 AND x5 = 0 ORDER BY x1 DESC, x2 DESC, x5 DESC, time DESC, x3 ASC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_2_2_chunk (actual rows=6.00 loops=1)
    Output: _hyper_2_2_chunk."time", _hyper_2_2_chunk.x1, _hyper_2_2_chunk.x2, _hyper_2_2_chunk.x3, _hyper_2_2_chunk.x4, _hyper_2_2_chunk.x5
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1825,7 +1825,7 @@ SELECT _timescaledb_functions.chunk_status_text(chunk) FROM show_chunks('test_no
 :PREFIX
 SELECT * FROM test_nosegby ORDER BY segby, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1841,7 +1841,7 @@ SELECT * FROM test_nosegby ORDER BY segby, time DESC;
 :PREFIX
 SELECT * FROM test_nosegby ORDER BY segby, time DESC NULLS FIRST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1857,7 +1857,7 @@ SELECT * FROM test_nosegby ORDER BY segby, time DESC NULLS FIRST;
 :PREFIX
 SELECT * FROM test_nosegby ORDER BY segby DESC, time ASC NULLS LAST;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1874,7 +1874,7 @@ SELECT * FROM test_nosegby ORDER BY segby DESC, time ASC NULLS LAST;
 :PREFIX
 SELECT * FROM test_nosegby ORDER BY segby DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1891,7 +1891,7 @@ SELECT * FROM test_nosegby ORDER BY segby DESC;
 :PREFIX
 SELECT * FROM test_nosegby ORDER BY segby;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -1908,7 +1908,7 @@ SELECT * FROM test_nosegby ORDER BY segby, time DESC NULLS LAST;
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Sort Key: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time" DESC NULLS LAST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
          Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -1923,7 +1923,7 @@ SELECT * FROM test_nosegby ORDER BY segby DESC NULLS LAST;
    Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
    Sort Key: _hyper_6_6_chunk.segby DESC NULLS LAST
    Sort Method: quicksort 
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_6_6_chunk (actual rows=12.00 loops=1)
          Output: _hyper_6_6_chunk.segby, _hyper_6_6_chunk."time", _hyper_6_6_chunk.val
          Chunk Status: UNORDERED
          Bulk Decompression: true
@@ -1999,7 +1999,7 @@ SET timescaledb.debug_require_batch_sorted_merge = 'force';
 :PREFIX
 SELECT dev, time FROM t2 WHERE dev = 1 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=21.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=21.00 loops=1)
    Output: _hyper_7_7_chunk.dev, _hyper_7_7_chunk."time"
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -2038,7 +2038,7 @@ SELECT dev, time FROM t2 WHERE dev = 1 ORDER BY time DESC;
 :PREFIX
 SELECT dev, time FROM t2 WHERE dev = 1 ORDER BY time;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=21.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=21.00 loops=1)
    Output: _hyper_7_7_chunk.dev, _hyper_7_7_chunk."time"
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -2081,7 +2081,7 @@ SELECT dev, time FROM t2 WHERE dev = 1 ORDER BY time;
 :PREFIX
 SELECT dev, time FROM t2 WHERE time > 8 AND dev=1 ORDER BY dev, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=8.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=8.00 loops=1)
    Output: _hyper_7_7_chunk.dev, _hyper_7_7_chunk."time"
    Filter: (_hyper_7_7_chunk."time" > 8)
    Rows Removed by Filter: 2
@@ -2107,7 +2107,7 @@ SELECT dev, time FROM t2 WHERE time > 8 AND dev=1 ORDER BY dev, time DESC;
 :PREFIX
 SELECT dev, time, v FROM t2 WHERE v = 20 AND dev=1 ORDER BY dev, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=4.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=4.00 loops=1)
    Output: _hyper_7_7_chunk.dev, _hyper_7_7_chunk."time", _hyper_7_7_chunk.v
    Filter: (_hyper_7_7_chunk.v = 20)
    Rows Removed by Filter: 17
@@ -2142,7 +2142,7 @@ FROM (VALUES (1), (2), (3)) a(dv),
          Startup Exclusion: false
          Runtime Exclusion: true
          Hypertables excluded during runtime: 0
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=16.00 loops=3)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_7_7_chunk (actual rows=16.00 loops=3)
                Output: _hyper_7_7_chunk.dev, _hyper_7_7_chunk."time"
                Chunk Status: UNORDERED
                Batch Sorted Merge: true
@@ -2273,7 +2273,7 @@ SELECT _timescaledb_functions.chunk_status_text(chunk) FROM show_chunks('t2_nose
 :PREFIX
 SELECT time, v FROM t2_noseg ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=48.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=48.00 loops=1)
    Output: _hyper_8_8_chunk."time", _hyper_8_8_chunk.v
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -2338,7 +2338,7 @@ SELECT time, v FROM t2_noseg ORDER BY time DESC;
 :PREFIX
 SELECT time, v FROM t2_noseg ORDER BY time;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=48.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=48.00 loops=1)
    Output: _hyper_8_8_chunk."time", _hyper_8_8_chunk.v
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -2407,7 +2407,7 @@ SELECT time, v FROM t2_noseg ORDER BY time;
 :PREFIX
 SELECT time, v FROM t2_noseg WHERE time > 8 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=17.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=17.00 loops=1)
    Output: _hyper_8_8_chunk."time", _hyper_8_8_chunk.v
    Filter: (_hyper_8_8_chunk."time" > 8)
    Rows Removed by Filter: 7
@@ -2442,7 +2442,7 @@ SELECT time, v FROM t2_noseg WHERE time > 8 ORDER BY time DESC;
 :PREFIX
 SELECT time, v FROM t2_noseg WHERE v > 10 ORDER BY time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=29.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=29.00 loops=1)
    Output: _hyper_8_8_chunk."time", _hyper_8_8_chunk.v
    Filter: (_hyper_8_8_chunk.v > 10)
    Rows Removed by Filter: 19
@@ -2501,7 +2501,7 @@ FROM (VALUES (10), (20), (30)) a(dv),
          Startup Exclusion: false
          Runtime Exclusion: true
          Hypertables excluded during runtime: 0
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=16.00 loops=3)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_8_8_chunk (actual rows=16.00 loops=3)
                Output: _hyper_8_8_chunk."time", _hyper_8_8_chunk.v
                Filter: (_hyper_8_8_chunk.v = "*VALUES*".column1)
                Rows Removed by Filter: 32
@@ -2571,7 +2571,7 @@ FROM (VALUES (10), (20), (30)) a(dv),
 :PREFIX
 SELECT * FROM test_segby ORDER BY segby, time DESC;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true
@@ -2583,7 +2583,7 @@ SELECT * FROM test_segby ORDER BY segby, time DESC;
 :PREFIX
 SELECT * FROM test_segby ORDER BY segby, time;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_4_4_chunk (actual rows=12.00 loops=1)
    Output: _hyper_4_4_chunk.segby, _hyper_4_4_chunk."time", _hyper_4_4_chunk.val
    Chunk Status: UNORDERED
    Batch Sorted Merge: true

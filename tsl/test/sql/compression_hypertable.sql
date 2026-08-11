@@ -301,7 +301,7 @@ drop table test8;
 
 
 -- Test memory handling of by-reference column when the output tuple of
--- ColumnarScan is overwritten.
+-- TimescaleDBColumnarScan is overwritten.
 
 create table source_table(ts int, tag text, value float) with (tsdb.hypertable,
     tsdb.partition_column = 'ts', tsdb.chunk_interval = 2500, tsdb.compress);

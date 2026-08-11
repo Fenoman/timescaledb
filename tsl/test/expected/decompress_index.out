@@ -120,7 +120,7 @@ SELECT compress_chunk(ch) FROM show_chunks('record') ch;
 -- enable_seqscan is OFF, should see IndexScan
 explain (buffers off, costs off) SELECT * FROM record ORDER BY data;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    ->  Index Scan using _hyper_2_2_chunk_compressed_data__ts_meta_v2_first_time__ts_idx on _hyper_2_2_chunk_compressed
 
 -- SkipScan is chosen because IndexScan is chosen
@@ -128,19 +128,19 @@ explain (buffers off, costs off) SELECT DISTINCT ON(data) * FROM record;
 --- QUERY PLAN ---
  Unique
    ->  Custom Scan (SkipScan) on _hyper_2_2_chunk
-         ->  Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
                ->  Index Scan using _hyper_2_2_chunk_compressed_data__ts_meta_v2_first_time__ts_idx on _hyper_2_2_chunk_compressed
 
 -- (seg_col = const) condition is checked even when seg_col is coerced
 explain (buffers off, costs off) SELECT * FROM record WHERE data='Yes' ORDER BY data;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    ->  Index Scan using _hyper_2_2_chunk_compressed_data__ts_meta_v2_first_time__ts_idx on _hyper_2_2_chunk_compressed
          Index Cond: ((data)::text = 'Yes'::text)
 
 explain (buffers off, costs off) SELECT * FROM record WHERE 'Yes' <= data ORDER BY data;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_2_2_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk
    ->  Index Scan using _hyper_2_2_chunk_compressed_data__ts_meta_v2_first_time__ts_idx on _hyper_2_2_chunk_compressed
          Index Cond: ((data)::text >= 'Yes'::text)
 
@@ -177,13 +177,13 @@ explain (buffers off, costs off) SELECT * FROM log_numeric WHERE parameter_id = 
 --- QUERY PLAN ---
  Merge Append
    Sort Key: log_numeric.device_id, log_numeric."time" DESC
-   ->  Custom Scan (ColumnarScan) on _hyper_3_3_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_3_chunk
          ->  Index Scan using _hyper_3_3_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_3_chunk_compressed
                Index Cond: (parameter_id = 1)
-   ->  Custom Scan (ColumnarScan) on _hyper_3_4_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_4_chunk
          ->  Index Scan using _hyper_3_4_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_4_chunk_compressed
                Index Cond: (parameter_id = 1)
-   ->  Custom Scan (ColumnarScan) on _hyper_3_5_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_5_chunk
          ->  Index Scan using _hyper_3_5_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_5_chunk_compressed
                Index Cond: (parameter_id = 1)
 
@@ -194,15 +194,15 @@ explain (buffers off, costs off) SELECT DISTINCT ON(device_id, parameter_id) * F
    ->  Merge Append
          Sort Key: log_numeric.device_id, log_numeric."time" DESC
          ->  Custom Scan (SkipScan) on _hyper_3_3_chunk
-               ->  Custom Scan (ColumnarScan) on _hyper_3_3_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_3_chunk
                      ->  Index Scan using _hyper_3_3_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_3_chunk_compressed
                            Index Cond: (parameter_id = 1)
          ->  Custom Scan (SkipScan) on _hyper_3_4_chunk
-               ->  Custom Scan (ColumnarScan) on _hyper_3_4_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_4_chunk
                      ->  Index Scan using _hyper_3_4_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_4_chunk_compressed
                            Index Cond: (parameter_id = 1)
          ->  Custom Scan (SkipScan) on _hyper_3_5_chunk
-               ->  Custom Scan (ColumnarScan) on _hyper_3_5_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_3_5_chunk
                      ->  Index Scan using _hyper_3_5_chunk_compressed_device_id_parameter_id__ts_meta_idx on _hyper_3_5_chunk_compressed
                            Index Cond: (parameter_id = 1)
 
@@ -235,13 +235,13 @@ explain (buffers off, costs off) SELECT count(*) FROM reading r JOIN device d ON
    ->  Nested Loop
          ->  Index Only Scan using device_pkey on device d
          ->  Custom Scan (ChunkAppend) on reading r
-               ->  Custom Scan (ColumnarScan) on _hyper_4_6_chunk r_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_6_chunk r_1
                      ->  Index Scan using _hyper_4_6_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_6_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_4_7_chunk r_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_7_chunk r_2
                      ->  Index Scan using _hyper_4_7_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_7_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_4_8_chunk r_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_8_chunk r_3
                      ->  Index Scan using _hyper_4_8_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_8_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
 
@@ -251,13 +251,13 @@ explain (buffers off, costs off) SELECT count(*) FROM reading r JOIN device d ON
    ->  Nested Loop
          ->  Index Only Scan using device_pkey on device d
          ->  Custom Scan (ChunkAppend) on reading r
-               ->  Custom Scan (ColumnarScan) on _hyper_4_6_chunk r_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_6_chunk r_1
                      ->  Index Scan using _hyper_4_6_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_6_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_4_7_chunk r_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_7_chunk r_2
                      ->  Index Scan using _hyper_4_7_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_7_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_4_8_chunk r_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_8_chunk r_3
                      ->  Index Scan using _hyper_4_8_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_4_8_chunk_compressed
                            Index Cond: ((device)::text = (d.name)::text)
 
@@ -290,11 +290,11 @@ explain (buffers off, costs off) SELECT count(*) FROM reading_num r JOIN device_
    ->  Hash Join
          Hash Cond: ((r.device)::numeric = d.val)
          ->  Append
-               ->  Custom Scan (ColumnarScan) on _hyper_5_9_chunk r_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_9_chunk r_1
                      ->  Seq Scan on _hyper_5_9_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_5_10_chunk r_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_10_chunk r_2
                      ->  Seq Scan on _hyper_5_10_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_5_11_chunk r_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_11_chunk r_3
                      ->  Seq Scan on _hyper_5_11_chunk_compressed
          ->  Hash
                ->  Index Only Scan using device_num_pkey on device_num d
@@ -310,11 +310,11 @@ explain (buffers off, costs off) SELECT count(*) FROM reading_num r JOIN device_
    ->  Hash Join
          Hash Cond: ((r.device)::numeric = d.val)
          ->  Append
-               ->  Custom Scan (ColumnarScan) on _hyper_5_9_chunk r_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_9_chunk r_1
                      ->  Seq Scan on _hyper_5_9_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_5_10_chunk r_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_10_chunk r_2
                      ->  Seq Scan on _hyper_5_10_chunk_compressed
-               ->  Custom Scan (ColumnarScan) on _hyper_5_11_chunk r_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_11_chunk r_3
                      ->  Seq Scan on _hyper_5_11_chunk_compressed
          ->  Hash
                ->  Index Only Scan using device_num_pkey on device_num d
@@ -354,15 +354,15 @@ explain (buffers off, costs off) SELECT count(*) FROM reading_mixed r JOIN devic
    ->  Nested Loop
          ->  Seq Scan on device_mixed d
          ->  Custom Scan (ChunkAppend) on reading_mixed r
-               ->  Custom Scan (ColumnarScan) on _hyper_6_12_chunk r_1
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_12_chunk r_1
                      Filter: (d.val = (device)::numeric)
                      ->  Index Scan using _hyper_6_12_chunk_compressed_ident_device__ts_meta_v2_first_idx on _hyper_6_12_chunk_compressed
                            Index Cond: ((ident)::text = (d.ident)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_6_13_chunk r_2
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_13_chunk r_2
                      Filter: (d.val = (device)::numeric)
                      ->  Index Scan using _hyper_6_13_chunk_compressed_ident_device__ts_meta_v2_first_idx on _hyper_6_13_chunk_compressed
                            Index Cond: ((ident)::text = (d.ident)::text)
-               ->  Custom Scan (ColumnarScan) on _hyper_6_14_chunk r_3
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_6_14_chunk r_3
                      Filter: (d.val = (device)::numeric)
                      ->  Index Scan using _hyper_6_14_chunk_compressed_ident_device__ts_meta_v2_first_idx on _hyper_6_14_chunk_compressed
                            Index Cond: ((ident)::text = (d.ident)::text)

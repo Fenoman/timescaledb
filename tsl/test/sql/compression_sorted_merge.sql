@@ -760,7 +760,7 @@ reset timescaledb.debug_require_batch_sorted_merge;
 
 -- Sorting on a column cast to a binary coercible type with a different sort
 -- order. int4 and oid compare differently for negative values, so the sort
--- cannot be pushed below the ColumnarScan.
+-- cannot be pushed below the TimescaleDBColumnarScan.
 CREATE TABLE sort_cast(time timestamptz not null, grp int not null, seq int not null, val int not null);
 SELECT FROM create_hypertable('sort_cast','time',chunk_time_interval => interval '1 year');
 ALTER TABLE sort_cast SET (timescaledb.compress, timescaledb.compress_segmentby='grp', timescaledb.compress_orderby='seq asc');

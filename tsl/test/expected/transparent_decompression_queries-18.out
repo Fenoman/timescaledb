@@ -86,7 +86,7 @@ GROUP BY 2, 3;
          Chunks excluded during startup: 0
          ->  Merge Append (actual rows=535681.00 loops=1)
                Sort Key: merge_sort.device_id, merge_sort.measure_id
-               ->  Custom Scan (ColumnarScan) on _hyper_2_3_chunk (actual rows=86400.00 loops=1)
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_3_chunk (actual rows=86400.00 loops=1)
                      Vectorized Filter: ("time" < "timestamp"(now()))
                      ->  Index Scan using _hyper_2_3_chunk_compressed_device_id_measure_id__ts_meta_v_idx on _hyper_2_3_chunk_compressed (actual rows=87.00 loops=1)
                            Index Cond: (_ts_meta_v2_first_time < now())
@@ -183,7 +183,7 @@ WHERE check_equal_228(rtt) and ts < '2019-12-15 00:00:00' order by ts;
    Sort Method: quicksort 
    ->  Custom Scan (ChunkAppend) on test_chartab (actual rows=1.00 loops=1)
          Chunks excluded during startup: 0
-         ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk (actual rows=1.00 loops=1)
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk (actual rows=1.00 loops=1)
                Filter: check_equal_228(rtt)
                Rows Removed by Filter: 2
                ->  Seq Scan on _hyper_1_1_chunk_compressed (actual rows=3.00 loops=1)
@@ -277,6 +277,6 @@ EXPLAIN (costs off, buffers off, analyze, timing off, summary off) SELECT sensor
 --- QUERY PLAN ---
  GroupAggregate (actual rows=2.00 loops=1)
    Group Key: _hyper_5_14_chunk.sensor_id, _hyper_5_14_chunk.enum_type
-   ->  Custom Scan (ColumnarScan) on _hyper_5_14_chunk (actual rows=2.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_14_chunk (actual rows=2.00 loops=1)
          ->  Index Scan using _hyper_5_14_chunk_compressed_sensor_id__ts_meta_v2_first_en_idx on _hyper_5_14_chunk_compressed (actual rows=1.00 loops=1)
 
