@@ -697,23 +697,30 @@ tsl_skip_scan_paths_add(PlannerInfo *root, RelOptInfo *input_rel, RelOptInfo *ou
 				continue;
 			}
 
+#if PG19_GE
 			subpath = (Path *)
 				create_append_path(/* root = */ root,
 								   /* rel = */ append_path->path.parent,
-#if PG19_GE
 								   /* input = */
 								   (AppendPathInput){ .subpaths = new_paths,
-													  .child_append_relid_sets =
-														  append_path->child_append_relid_sets },
-#else
-								   /* subpaths = */ new_paths,
-								   /* partial_subpaths = */ NULL,
-#endif
+														  .child_append_relid_sets =
+															  append_path->child_append_relid_sets },
 								   /* pathkeys = */ append_path->path.pathkeys,
 								   /* required_outer = */ NULL,
 								   /* parallel_workers = */ append_path->path.parallel_workers,
 								   /* parallel_aware = */ append_path->path.parallel_aware,
 								   /* rows = */ -1);
+#else
+			subpath = (Path *) ts_create_append_path(root,
+													  append_path->path.parent,
+													  new_paths,
+													  NULL,
+													  append_path->path.pathkeys,
+													  NULL,
+													  append_path->path.parallel_workers,
+													  append_path->path.parallel_aware,
+													  -1);
+#endif
 			subpath->pathtarget = copy_pathtarget(append_path->path.pathtarget);
 		}
 		else if (ts_is_chunk_append_path(subpath))

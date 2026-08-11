@@ -1112,7 +1112,7 @@ constify_param_mutator(Node *node, void *context)
 		return node;
 	}
 
-	return expression_tree_mutator(node, constify_param_mutator, context);
+	return ts_expression_tree_mutator(node, constify_param_mutator, context);
 }
 
 /*

@@ -1795,23 +1795,31 @@ build_on_single_compressed_path(PlannerInfo *root, const Chunk *chunk, RelOptInf
 			sequential_paths = lappend(sequential_paths, unordered_uncompressed_path);
 		}
 
+#if PG19_GE
 		Path *plain_append =
 			(Path *) create_append_path(/* root = */ root,
 										/* rel = */ chunk_rel,
-#if PG19_GE
 										/* input = */
 										(AppendPathInput){ .subpaths = sequential_paths,
-														   .partial_subpaths = parallel_paths },
-#else
-										/* subpaths = */ sequential_paths,
-										/* partial_subpaths = */ parallel_paths,
-#endif
+															   .partial_subpaths = parallel_paths },
 										/* pathkeys = */ NIL,
 										/* required_outer = */ req_outer,
 										/* parallel_workers = */ workers,
 										/* parallel_aware = */ workers > 0,
 										/* rows = */ chunk_path_no_sort->rows +
 											unordered_uncompressed_path->rows);
+#else
+		Path *plain_append = (Path *) ts_create_append_path(root,
+														 chunk_rel,
+														 sequential_paths,
+														 parallel_paths,
+														 /* pathkeys = */ NIL,
+														 req_outer,
+														 workers,
+														 workers > 0,
+														 chunk_path_no_sort->rows +
+															 unordered_uncompressed_path->rows);
+#endif
 
 		combined_paths = lappend(combined_paths, plain_append);
 	}
@@ -2173,7 +2181,7 @@ chunk_joininfo_mutator(Node *node, CompressionInfo *context)
 		newinfo->right_mcvfreq = -1;
 		return (Node *) newinfo;
 	}
-	return expression_tree_mutator(node, chunk_joininfo_mutator, context);
+	return ts_expression_tree_mutator(node, chunk_joininfo_mutator, context);
 }
 
 /* Check if the expression references a compressed column in compressed chunk. */
