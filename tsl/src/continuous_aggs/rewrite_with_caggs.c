@@ -980,6 +980,11 @@ rewrite_query_with_caggs(Node *node, RewriteWithCaggsContext *context)
 Query *
 continuous_agg_apply_rewrites(Query *parse)
 {
+	if (!ts_guc_enable_cagg_rewrites && !ts_guc_cagg_rewrites_debug_info)
+	{
+		return parse;
+	}
+
 	Query *result = parse;
 	RewriteWithCaggsContext rewrite_with_caggs_context = { 0 };
 	rewrite_with_caggs_context.is_root_query = true;
