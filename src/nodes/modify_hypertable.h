@@ -71,6 +71,9 @@ typedef struct ModifyHypertableState
 
 	int deferred_eflags;
 	Plan *deferred_modify_table_subplan;
+
+	bool explain_targetlists_hidden;
+	SharedCounters explain_last_counters;
 } ModifyHypertableState;
 
 extern TSDLLEXPORT bool ts_is_modify_hypertable_plan(Plan *plan);

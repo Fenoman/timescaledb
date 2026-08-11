@@ -553,7 +553,7 @@ columnar_scan_explain(CustomScanState *node, List *ancestors, ExplainState *es)
 		ts_show_instrumentation_count("Rows Removed by Filter", 1, &node->ss.ps, es);
 	}
 
-	if (es->analyze && es->verbose &&
+	if (es->analyze && es->verbose && node->ss.ps.instrument &&
 		(node->ss.ps.instrument->ntuples2 > 0 || es->format != EXPLAIN_FORMAT_TEXT))
 	{
 		ExplainPropertyFloat("Batches Removed by Filter",

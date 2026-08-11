@@ -373,18 +373,19 @@ modify_hypertable_end(CustomScanState *node)
 	 * VERBOSE (see modify_hypertable_explain). This prevents corruption of
 	 * cached plans for prepared statements.
 	 */
-	if (state->explain_saved_tlist)
+	if (state->explain_targetlists_hidden)
 	{
 		ModifyTableState *mtstate = linitial_node(ModifyTableState, node->custom_ps);
 		Plan *lefttree = mtstate->ps.plan->lefttree;
 		lefttree->targetlist = state->explain_saved_tlist;
-		if (IsA(lefttree, CustomScan) && state->explain_saved_custom_scan_tlist)
+		if (IsA(lefttree, CustomScan))
 		{
 			castNode(CustomScan, lefttree)->custom_scan_tlist =
 				state->explain_saved_custom_scan_tlist;
 		}
 		state->explain_saved_tlist = NULL;
 		state->explain_saved_custom_scan_tlist = NULL;
+		state->explain_targetlists_hidden = false;
 	}
 
 	/* compressor is flushed in ExecModifyTable */
@@ -437,7 +438,8 @@ modify_hypertable_explain(CustomScanState *node, List *ancestors, ExplainState *
 	 */
 	const CmdType operation = ((ModifyTable *) mtstate->ps.plan)->operation;
 	if ((operation == CMD_MERGE || operation == CMD_DELETE) && es->verbose &&
-		is_chunk_append_or_projection(mtstate->ps.plan->lefttree))
+		is_chunk_append_or_projection(mtstate->ps.plan->lefttree) &&
+		!state->explain_targetlists_hidden)
 	{
 		Plan *lefttree = mtstate->ps.plan->lefttree;
 		state->explain_saved_tlist = lefttree->targetlist;
@@ -449,6 +451,7 @@ modify_hypertable_explain(CustomScanState *node, List *ancestors, ExplainState *
 				castNode(CustomScan, lefttree)->custom_scan_tlist;
 			castNode(CustomScan, lefttree)->custom_scan_tlist = NULL;
 		}
+		state->explain_targetlists_hidden = true;
 	}
 
 	/*
@@ -473,19 +476,30 @@ modify_hypertable_explain(CustomScanState *node, List *ancestors, ExplainState *
 	 * tuples from the ChunkTupleRouting state below the ModifyTable.
 	 */
 	if ((mtstate->operation == CMD_INSERT || mtstate->operation == CMD_MERGE) &&
-		outerPlanState(mtstate))
+		outerPlanState(mtstate) && state->ctr)
 	{
 		SharedCounters *counters = state->ctr->counters;
 
-		state->batches_deleted += counters->batches_deleted;
-		state->batches_filtered_decompressed += counters->batches_filtered_decompressed;
-		state->batches_decompressed += counters->batches_decompressed;
-		state->tuples_decompressed += counters->tuples_decompressed;
-		state->batches_scanned += counters->batches_scanned;
-		state->batches_checked_by_bloom += counters->batches_checked_by_bloom;
-		state->batches_pruned_by_bloom += counters->batches_pruned_by_bloom;
-		state->batches_without_bloom += counters->batches_without_bloom;
-		state->batches_bloom_false_positives += counters->batches_bloom_false_positives;
+		state->batches_deleted +=
+			counters->batches_deleted - state->explain_last_counters.batches_deleted;
+		state->batches_filtered_decompressed += counters->batches_filtered_decompressed -
+											state->explain_last_counters.batches_filtered_decompressed;
+		state->batches_decompressed +=
+			counters->batches_decompressed - state->explain_last_counters.batches_decompressed;
+		state->tuples_decompressed +=
+			counters->tuples_decompressed - state->explain_last_counters.tuples_decompressed;
+		state->batches_scanned +=
+			counters->batches_scanned - state->explain_last_counters.batches_scanned;
+		state->batches_checked_by_bloom += counters->batches_checked_by_bloom -
+										state->explain_last_counters.batches_checked_by_bloom;
+		state->batches_pruned_by_bloom += counters->batches_pruned_by_bloom -
+										state->explain_last_counters.batches_pruned_by_bloom;
+		state->batches_without_bloom +=
+			counters->batches_without_bloom - state->explain_last_counters.batches_without_bloom;
+		state->batches_bloom_false_positives += counters->batches_bloom_false_positives -
+											 state->explain_last_counters.batches_bloom_false_positives;
+
+		state->explain_last_counters = *counters;
 	}
 	if (state->batches_scanned > 0)
 	{

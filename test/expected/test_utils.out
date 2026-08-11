@@ -15,16 +15,16 @@ SET ROLE :ROLE_DEFAULT_PERM_USER;
 -- failing conditions
 \set ON_ERROR_STOP 0
 SELECT test.condition();
-WARNING:  TestFailure in ts_test_utils_condition() at line:46
+WARNING:  TestFailure in ts_test_utils_condition() at line:242
 ERROR:  TestFailure | (true_value == false_value)
 SELECT test.int64_eq();
-WARNING:  TestFailure in ts_test_utils_int64_eq() at line:56
+WARNING:  TestFailure in ts_test_utils_int64_eq() at line:252
 ERROR:  TestFailure | (big == small) [32532978 == 3242234]
 SELECT test.ptr_eq();
-WARNING:  TestFailure in ts_test_utils_ptr_eq() at line:70
+WARNING:  TestFailure in ts_test_utils_ptr_eq() at line:266
 ERROR:  TestFailure | (true_ptr == false_ptr)
 SELECT test.double_eq();
-WARNING:  TestFailure in ts_test_utils_double_eq() at line:81
+WARNING:  TestFailure in ts_test_utils_double_eq() at line:277
 ERROR:  TestFailure | (big_double == small_double) [923423478.324200 == 324.300000]
 \set ON_ERROR_STOP 1
 -- Test debug points
@@ -115,3 +115,38 @@ SELECT test.errdata_to_jsonb();
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  {"hint": "test error hint", "detail": "test error detail", "domain": "test error domain", "lineno": 123, "context": "test error context", "message": "test error message", "filename": "test error filename", "funcname": "test error function", "proc_name": "proc_name", "detail_log": "test error detail log", "sqlerrcode": "22023", "table_name": "test error table", "column_name": "test error column", "proc_schema": "proc_schema", "schema_name": "test error schema", "datatype_name": "test error datatype", "internalquery": "test error internal query", "context_domain": "test error context domain", "constraint_name": "test error constraint"}
 
+-- An extension may inspect the plan right after ExecutorStart. This must work
+-- before ModifyHypertable initializes ChunkTupleRouting on the first executor
+-- call.
+CREATE OR REPLACE FUNCTION test.enable_explain_in_executor_start() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_enable_explain_in_executor_start' LANGUAGE C VOLATILE;
+CREATE OR REPLACE FUNCTION test.disable_explain_in_executor_start() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_disable_explain_in_executor_start' LANGUAGE C VOLATILE;
+CREATE TABLE early_explain_insert (time timestamptz NOT NULL, value integer);
+DO $$ BEGIN PERFORM create_hypertable('early_explain_insert', 'time'); END $$;
+DO $$ BEGIN PERFORM test.enable_explain_in_executor_start(); END $$;
+INSERT INTO early_explain_insert VALUES ('2026-01-01', 1);
+MERGE INTO early_explain_insert h
+USING (VALUES ('2026-01-02'::timestamptz, 2)) AS s(t, v)
+ON h.time = s.t
+WHEN MATCHED THEN UPDATE SET value = s.v
+WHEN NOT MATCHED THEN INSERT VALUES (s.t, s.v);
+DO $$ BEGIN PERFORM test.disable_explain_in_executor_start(); END $$;
+-- End early ExecutorStart EXPLAIN test.
+-- An extension may inspect an executed plan repeatedly before ExecutorEnd.
+-- Repeated EXPLAIN must preserve saved targetlists and must not double-count
+-- shared ChunkTupleRouting counters.
+CREATE OR REPLACE FUNCTION test.enable_explain_in_executor_run() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_enable_explain_in_executor_run' LANGUAGE C VOLATILE;
+CREATE OR REPLACE FUNCTION test.disable_explain_in_executor_run() RETURNS VOID
+    AS :MODULE_PATHNAME, 'ts_test_disable_explain_in_executor_run' LANGUAGE C VOLATILE;
+CREATE TABLE runtime_explain (time timestamptz NOT NULL, value integer);
+DO $$ BEGIN PERFORM create_hypertable('runtime_explain', 'time'); END $$;
+INSERT INTO runtime_explain VALUES ('2021-01-01', 1), ('2022-01-01', 2);
+DO $$ BEGIN PERFORM test.enable_explain_in_executor_run(); END $$;
+\set ON_ERROR_STOP 0
+DELETE FROM runtime_explain WHERE time > '2020-01-01'::text::timestamptz;
+INSERT INTO runtime_explain VALUES ('2021-01-01', 3);
+DO $$ BEGIN PERFORM test.disable_explain_in_executor_run(); END $$;
+\set ON_ERROR_STOP 1
+-- End runtime ExecutorRun EXPLAIN test.
