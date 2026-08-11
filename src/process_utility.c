@@ -1297,7 +1297,8 @@ process_vacuum(ProcessUtilityArgs *args)
 	};
 	ListCell *lc;
 	Hypertable *ht;
-	List *vacuum_rels = NIL;
+	/* PG_TRY can return here through longjmp before the cleanup path reads this pointer. */
+	List *volatile vacuum_rels = NIL;
 	List *exec_rels = NIL;
 	bool is_vacuumcmd;
 	bool found_hypertable = false;
