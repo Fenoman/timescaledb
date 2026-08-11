@@ -775,8 +775,9 @@ do_load(TsExtension *const ext)
 	char *version = extension_version(ext->name);
 	char soname[MAX_SO_NAME_LEN];
 	post_parse_analyze_hook_type old_hook;
-	ProcessUtility_hook_type saved_pu_hook = NULL;
-	bool capture_pu_hook = false;
+	/* Read in PG_CATCH after a longjmp: keep them out of registers. */
+	ProcessUtility_hook_type volatile saved_pu_hook = NULL;
+	volatile bool capture_pu_hook = false;
 
 	/* If the right version of the library is already loaded, we will just
 	 * skip the actual loading. If the wrong version of the library is loaded,
