@@ -166,8 +166,17 @@ hypertable_cache_missing_error(const Cache *cache, const CacheQuery *query)
 void
 ts_hypertable_cache_invalidate_callback(void)
 {
+	/*
+	 * Recreate the cache lazily on the next pin. This callback runs from
+	 * relcache invalidation and (sub)transaction abort paths, where
+	 * allocating the memory context and hash table for a new cache could
+	 * itself error out; deferring the allocation moves it into a normal
+	 * query context. It also makes aborted transactions that never touch
+	 * TimescaleDB objects again pay nothing for the recreation.
+	 * ts_cache_invalidate() clears hypertable_cache_current even when the
+	 * old cache stays alive under pins.
+	 */
 	ts_cache_invalidate(&hypertable_cache_current);
-	hypertable_cache_current = hypertable_cache_create();
 }
 
 #ifdef TS_DEBUG
@@ -249,6 +258,10 @@ ts_hypertable_cache_get_entry_with_table(Cache *cache, const Oid relid, const ch
 extern TSDLLEXPORT Cache *
 ts_hypertable_cache_pin()
 {
+	if (hypertable_cache_current == NULL)
+	{
+		hypertable_cache_current = hypertable_cache_create();
+	}
 	return ts_cache_pin(hypertable_cache_current);
 }
 
