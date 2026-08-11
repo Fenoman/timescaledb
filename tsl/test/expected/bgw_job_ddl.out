@@ -109,6 +109,13 @@ DETAIL:  owner of job 1001
 DROP PROCEDURE frugal.magic;
 ERROR:  cannot drop frugal.magic because background job 1001 depends on it
 HINT:  Use delete_job() to drop the job first.
+-- Test that unqualified procedure names are resolved through search_path.
+START TRANSACTION;
+SET LOCAL search_path TO frugal, public;
+DROP PROCEDURE magic;
+ERROR:  cannot drop magic because background job 1001 depends on it
+HINT:  Use delete_job() to drop the job first.
+ROLLBACK;
 -- Test that re-assigning objects owned by an unknown user still fails
 REASSIGN OWNED BY renamed_user, unknown_user TO :ROLE_DEFAULT_PERM_USER;
 ERROR:  role "unknown_user" does not exist

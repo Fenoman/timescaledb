@@ -93,6 +93,12 @@ DROP USER renamed_user;
 -- job using it.
 DROP PROCEDURE frugal.magic;
 
+-- Test that unqualified procedure names are resolved through search_path.
+START TRANSACTION;
+SET LOCAL search_path TO frugal, public;
+DROP PROCEDURE magic;
+ROLLBACK;
+
 -- Test that re-assigning objects owned by an unknown user still fails
 REASSIGN OWNED BY renamed_user, unknown_user TO :ROLE_DEFAULT_PERM_USER;
 
