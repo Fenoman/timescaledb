@@ -1323,6 +1323,18 @@ process_vacuum(ProcessUtilityArgs *args)
 		}
 	}
 
+	/*
+	 * A non-FULL database-wide statement needs no Timescale involvement:
+	 * chunks and compressed chunks are ordinary pg_class entries, so
+	 * PostgreSQL's own enumeration already covers them, and columnstore
+	 * rebuild registration only applies to VACUUM FULL. Skip the
+	 * duplicate pg_class scan and let the standard path execute it.
+	 */
+	if (stmt->rels == NIL && !ctx.is_vacuumfull)
+	{
+		return DDL_CONTINUE;
+	}
+
 	if (stmt->rels == NIL)
 	{
 		vacuum_rels = ts_get_all_vacuum_rels(is_vacuumcmd, &ctx);
