@@ -959,7 +959,7 @@ DROP TABLE uncompressed_index;
 CREATE TABLE recompress_index_match(time timestamptz NOT NULL, s1 int, s2 int, v int);
 SELECT create_hypertable('recompress_index_match', 'time');
 create_hypertable
-(32,public,recompress_index_match,t)
+(17,public,recompress_index_match,t)
 ALTER TABLE recompress_index_match SET (
 	timescaledb.compress,
 	timescaledb.compress_segmentby = 's1,s2',
@@ -978,10 +978,9 @@ SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'unc
 initial_index_found
 t
 DROP INDEX :good_idx;
-SELECT format('%I.%I', cc.schema_name, cc.table_name) AS compressed_chunk
-FROM _timescaledb_catalog.chunk uc
-JOIN _timescaledb_catalog.chunk cc ON uc.compressed_chunk_id = cc.id
-WHERE format('%I.%I', uc.schema_name, uc.table_name)::regclass = :'uncompressed_chunk'::regclass \gset
+SELECT compress_relid::text AS compressed_chunk
+FROM _timescaledb_catalog.compression_settings
+WHERE relid = :'uncompressed_chunk'::regclass \gset
 CREATE INDEX recompress_index_match_wrong_idx ON :compressed_chunk
 	(s1, s1, _ts_meta_v2_first_time, _ts_meta_v2_last_time);
 SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk') IS NULL AS missing_last_segmentby_rejected;
