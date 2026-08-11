@@ -4552,7 +4552,20 @@ process_create_table_end(Node *parsetree)
 		char *time_column = NULL;
 		if (stmt->partspec != NULL)
 		{
-			time_column = ((PartitionElem *) linitial(stmt->partspec->partParams))->name;
+			/*
+			 * The partitioning key can be a plain column (PARTITION BY RANGE (ts))
+			 * or an expression (PARTITION BY RANGE ((ts))). Only a plain column has
+			 * a name; for an expression PartitionElem->name is NULL. The code below
+			 * needs a column name, so reject expressions here instead of passing
+			 * NULL to namestrcpy() further down and crashing the backend.
+			 */
+			PartitionElem *elem = (PartitionElem *) linitial(stmt->partspec->partParams);
+			time_column = elem->name;
+			if (time_column == NULL)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("cannot use an expression as the hypertable partitioning key"),
+						 errhint("Use a plain column, or set \"timescaledb.partition_column\".")));
 		}
 		else if (create_table_info.with_clauses[CreateTableFlagTimeColumn].is_default)
 		{
