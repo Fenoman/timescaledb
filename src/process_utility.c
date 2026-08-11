@@ -6547,6 +6547,15 @@ process_ddl_command_start(ProcessUtilityArgs *args)
 		return DDL_CONTINUE;
 	}
 
+	/*
+	 * Since a handler might alter the parsetree, e.g. strip timescaledb
+	 * options before passing it to Postgres, work on a copy of the
+	 * original statement in case it is cached. Commands without a handler
+	 * are forwarded unmodified and need no copy.
+	 */
+	args->pstmt = copyObject(args->pstmt);
+	args->parsetree = args->pstmt->utilityStmt;
+
 	if (check_read_only)
 	{
 		PreventCommandIfReadOnly(CreateCommandName(args->parsetree));
@@ -6830,14 +6839,6 @@ timescaledb_ddl_command_start(PlannedStmt *pstmt, const char *query_string, bool
 		prev_ProcessUtility(&args);
 		return;
 	}
-
-	/*
-	 * Since we might alter the parsetree and strip timescaledb options
-	 * before passing it to Postgres, we need to make a copy of the original
-	 * statement in case it is cached.
-	 */
-	args.pstmt = copyObject(pstmt);
-	args.parsetree = args.pstmt->utilityStmt;
 
 	result = process_ddl_command_start(&args);
 
