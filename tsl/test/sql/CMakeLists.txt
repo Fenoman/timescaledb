@@ -194,6 +194,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     cagg_tableam.sql
     cagg_usage.sql
     cagg_uuid.sql
+    columnar_early_explain.sql
     columnar_scan_memory.sql
     decompress_memory.sql
     decompress_vector_qual.sql
