@@ -36,6 +36,7 @@
 #include <nodes/parsenodes.h>
 #include <optimizer/optimizer.h>
 #include <parser/parse_expr.h>
+#include <parser/parse_func.h>
 #include <parser/parse_relation.h>
 #include <parser/parse_type.h>
 #include <parser/parse_utilcmd.h>
@@ -487,6 +488,9 @@ check_table_in_rangevar_list(List *rvlist, Name schema_name, Name table_name)
 	{
 		RangeVar *rvar = lfirst_node(RangeVar, l);
 
+		if (rvar->schemaname == NULL)
+			continue;
+
 		if (strcmp(rvar->relname, NameStr(*table_name)) == 0 &&
 			strcmp(rvar->schemaname, NameStr(*schema_name)) == 0)
 		{
@@ -507,15 +511,23 @@ add_chunk_oid(Hypertable *ht, Oid chunk_relid, void *vargs)
 	/* Switch to the parent context for persistent allocations */
 	MemoryContext per_chunk_mcxt = MemoryContextSwitchTo(GetMemoryChunkContext(stmt));
 
-	char *schema_name = get_namespace_name(get_rel_namespace(chunk_relid));
+	Oid namespace_oid = get_rel_namespace(chunk_relid);
+	char *schema_name = OidIsValid(namespace_oid) ? get_namespace_name(namespace_oid) : NULL;
 	char *table_name = get_rel_name(chunk_relid);
+
+	if (schema_name == NULL || table_name == NULL)
+	{
+		elog(DEBUG1, "skipping grant processing for missing chunk relation %u", chunk_relid);
+		MemoryContextSwitchTo(per_chunk_mcxt);
+		return;
+	}
 
 	namestrcpy(&schema, schema_name);
 	namestrcpy(&table, table_name);
 
 	if (!check_table_in_rangevar_list(stmt->objects, &schema, &table))
 	{
-		RangeVar *rv = makeRangeVar(schema_name, table_name, -1);
+		RangeVar *rv = makeRangeVar(pstrdup(schema_name), pstrdup(table_name), -1);
 		stmt->objects = lappend(stmt->objects, rv);
 	}
 	MemoryContextSwitchTo(per_chunk_mcxt);
@@ -596,9 +608,17 @@ process_drop_procedure_start(DropStmt *stmt)
 		foreach (cell, stmt->objects)
 		{
 			ObjectWithArgs *object = castNode(ObjectWithArgs, lfirst(cell));
-			RangeVar *rel = makeRangeVarFromNameList(object->objname);
-			if (namestrcmp(proc_schema, rel->schemaname) == 0 &&
-				namestrcmp(proc_name, rel->relname) == 0)
+			Oid dropped_proc_oid = LookupFuncWithArgs(stmt->removeType, object, true);
+
+			if (!OidIsValid(dropped_proc_oid))
+				continue;
+
+			const char *dropped_proc_schema =
+				get_namespace_name(get_func_namespace(dropped_proc_oid));
+			const char *dropped_proc_name = get_func_name(dropped_proc_oid);
+
+			if (namestrcmp(proc_schema, dropped_proc_schema) == 0 &&
+				namestrcmp(proc_name, dropped_proc_name) == 0)
 			{
 				Assert(stmt->removeType == OBJECT_PROCEDURE || stmt->removeType == OBJECT_FUNCTION);
 				if (stmt->behavior == DROP_RESTRICT)
@@ -1106,17 +1126,43 @@ add_chunk_to_vacuum(Hypertable *ht, Oid chunk_relid, void *arg)
 	Chunk *chunk;
 	VacuumRelation *chunk_vacuum_rel;
 	RangeVar *chunk_range_var;
+	List *va_cols = NIL;
+	char *schema_name;
+	char *table_name;
+
+	Assert(ctx != NULL);
+	Assert(ctx->ht_vacuum_rel != NULL);
 
 	/* Switch to the parent context for persistent allocations */
 	MemoryContext per_chunk_mcxt = MemoryContextSwitchTo(GetMemoryChunkContext(ctx->ht_vacuum_rel));
 
-	chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	chunk = ts_chunk_get_by_relid(chunk_relid, false);
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping vacuum for missing chunk %u", chunk_relid);
+		MemoryContextSwitchTo(per_chunk_mcxt);
+		return;
+	}
 
-	chunk_range_var = copyObject(ctx->ht_vacuum_rel->relation);
-	chunk_range_var->relname = ts_chunk_get_table_name(chunk);
-	chunk_range_var->schemaname = ts_chunk_get_schema_name(chunk);
-	chunk_vacuum_rel =
-		makeVacuumRelation(chunk_range_var, chunk_relid, ctx->ht_vacuum_rel->va_cols);
+	if (ctx->ht_vacuum_rel->va_cols != NIL)
+		va_cols = copyObject(ctx->ht_vacuum_rel->va_cols);
+
+	schema_name = ts_chunk_get_schema_name(chunk);
+	table_name = ts_chunk_get_table_name(chunk);
+	if (schema_name == NULL || table_name == NULL)
+	{
+		elog(DEBUG1, "skipping vacuum for missing chunk relation %u", chunk_relid);
+		MemoryContextSwitchTo(per_chunk_mcxt);
+		return;
+	}
+
+	chunk_range_var =
+		makeRangeVar(pstrdup(schema_name), pstrdup(table_name), -1);
+
+	if (ctx->ht_vacuum_rel->relation != NULL)
+		chunk_range_var->inh = ctx->ht_vacuum_rel->relation->inh;
+
+	chunk_vacuum_rel = makeVacuumRelation(chunk_range_var, chunk_relid, va_cols);
 	ctx->chunk_rels = lappend(ctx->chunk_rels, chunk_vacuum_rel);
 
 	/* If we have a compressed chunk make sure to analyze it as well */
@@ -1196,6 +1242,47 @@ ts_get_all_vacuum_rels(bool is_vacuumcmd, VacuumCtx *ctx)
 	return vacrels;
 }
 
+static Oid
+vacuum_relation_get_relid(VacuumRelation *vacuum_rel)
+{
+	Oid table_relid = vacuum_rel->oid;
+
+	if (!OidIsValid(table_relid) && vacuum_rel->relation != NULL)
+		table_relid = RangeVarGetRelid(vacuum_rel->relation, NoLock, true);
+
+	return table_relid;
+}
+
+static VacuumRelation *
+vacuum_relation_deep_copy(VacuumRelation *vacuum_rel)
+{
+	RangeVar *relation = NULL;
+	List *va_cols = NIL;
+
+	if (vacuum_rel->relation != NULL)
+		relation = copyObject(vacuum_rel->relation);
+
+	if (vacuum_rel->va_cols != NIL)
+		va_cols = copyObject(vacuum_rel->va_cols);
+
+	return makeVacuumRelation(relation, vacuum_rel->oid, va_cols);
+}
+
+static List *
+vacuum_relation_list_deep_copy(List *vacuum_rels)
+{
+	List *copy = NIL;
+	ListCell *lc;
+
+	foreach (lc, vacuum_rels)
+	{
+		VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
+		copy = lappend(copy, vacuum_relation_deep_copy(vacuum_rel));
+	}
+
+	return copy;
+}
+
 /* Vacuums/Analyzes a hypertable and all of it's chunks */
 static DDLResult
 process_vacuum(ProcessUtilityArgs *args)
@@ -1210,8 +1297,11 @@ process_vacuum(ProcessUtilityArgs *args)
 	};
 	ListCell *lc;
 	Hypertable *ht;
-	List *vacuum_rels = NIL;
+	/* PG_TRY can return here through longjmp before the cleanup path reads this pointer. */
+	List *volatile vacuum_rels = NIL;
+	List *exec_rels = NIL;
 	bool is_vacuumcmd;
+	bool found_hypertable = false;
 	/* save original VacuumRelation list */
 	List *saved_stmt_rels = stmt->rels;
 
@@ -1236,6 +1326,29 @@ process_vacuum(ProcessUtilityArgs *args)
 	if (stmt->rels == NIL)
 	{
 		vacuum_rels = ts_get_all_vacuum_rels(is_vacuumcmd, &ctx);
+		/*
+		 * Avoid intercepting VACUUM when there are no hypertables among the
+		 * selected relations. This keeps ordinary table and catalog VACUUM
+		 * paths on PostgreSQL's ownership model.
+		 */
+		if (vacuum_rels != NIL)
+		{
+			Cache *hcache = ts_hypertable_cache_pin();
+
+			foreach (lc, vacuum_rels)
+			{
+				VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
+				Oid table_relid = vacuum_relation_get_relid(vacuum_rel);
+
+				if (OidIsValid(table_relid) &&
+					ts_hypertable_cache_get_entry(hcache, table_relid, CACHE_FLAG_MISSING_OK))
+				{
+					found_hypertable = true;
+					break;
+				}
+			}
+			ts_cache_release(&hcache);
+		}
 	}
 	else
 	{
@@ -1243,13 +1356,18 @@ process_vacuum(ProcessUtilityArgs *args)
 
 		foreach (lc, stmt->rels)
 		{
-			VacuumRelation *vacuum_rel = lfirst_node(VacuumRelation, lc);
-			Oid table_relid = vacuum_rel->oid;
+			Node *node = lfirst(lc);
+			VacuumRelation *vacuum_rel = NULL;
+			Oid table_relid;
 
-			if (!OidIsValid(table_relid) && vacuum_rel->relation != NULL)
-			{
-				table_relid = RangeVarGetRelid(vacuum_rel->relation, NoLock, true);
-			}
+			if (IsA(node, VacuumRelation))
+				vacuum_rel = vacuum_relation_deep_copy(castNode(VacuumRelation, node));
+			else if (IsA(node, RangeVar))
+				vacuum_rel = makeVacuumRelation(copyObject(castNode(RangeVar, node)), InvalidOid, NIL);
+			else
+				continue;
+
+			table_relid = vacuum_relation_get_relid(vacuum_rel);
 
 			if (OidIsValid(table_relid))
 			{
@@ -1279,6 +1397,7 @@ process_vacuum(ProcessUtilityArgs *args)
 
 				if (ht)
 				{
+					found_hypertable = true;
 					ctx.ht_vacuum_rel = vacuum_rel;
 					foreach_chunk(ht, add_chunk_to_vacuum, &ctx, false);
 				}
@@ -1286,18 +1405,23 @@ process_vacuum(ProcessUtilityArgs *args)
 				{
 					/* VACUUM targets a chunk directly. */
 					Chunk *chunk = ts_chunk_get_by_relid(table_relid, false);
-					if (chunk && ts_chunk_is_compressed(chunk))
+					if (chunk)
 					{
-						Oid compressed_relid = ts_relation_get_compressed_relid(chunk->fd.relid);
-						/* Compressed chunk might be missing due to concurrent operations */
-						if (OidIsValid(compressed_relid))
+						found_hypertable = true;
+						if (ts_chunk_is_compressed(chunk))
 						{
-							ctx.chunk_rels =
-								lappend(ctx.chunk_rels,
-										makeVacuumRelation(NULL, compressed_relid, NIL));
+							Oid compressed_relid =
+								ts_relation_get_compressed_relid(chunk->fd.relid);
+							/* Compressed chunk might be missing due to concurrent operations */
+							if (OidIsValid(compressed_relid))
+							{
+								ctx.chunk_rels =
+									lappend(ctx.chunk_rels,
+											makeVacuumRelation(NULL, compressed_relid, NIL));
+							}
 						}
+						register_chunk_for_rebuild_if_needed(table_relid, &ctx);
 					}
-					register_chunk_for_rebuild_if_needed(table_relid, &ctx);
 				}
 			}
 			vacuum_rels = lappend(vacuum_rels, vacuum_rel);
@@ -1305,11 +1429,24 @@ process_vacuum(ProcessUtilityArgs *args)
 		ts_cache_release(&hcache);
 	}
 
-	stmt->rels = list_concat(ctx.chunk_rels, vacuum_rels);
+	if (!found_hypertable)
+	{
+		list_free_deep(vacuum_rels);
+		list_free_deep(ctx.chunk_rels);
+		return DDL_CONTINUE;
+	}
+
+	/*
+	 * ExecVacuum takes ownership of the list it processes, so hand it a fully
+	 * isolated copy and keep our bookkeeping structures independent. Keep
+	 * Timescale's original chunks-first order for lock acquisition behavior.
+	 */
+	exec_rels = list_concat(vacuum_relation_list_deep_copy(ctx.chunk_rels),
+							 vacuum_relation_list_deep_copy(vacuum_rels));
 
 	/* The list of rels to vacuum could be empty if we are only vacuuming a
 	 * tiered hypertable with no local chunks. In that case, we don't want to vacuum locally. */
-	if (list_length(stmt->rels) > 0)
+	if (exec_rels != NIL)
 	{
 		PreventCommandDuringRecovery(is_vacuumcmd ? "VACUUM" : "ANALYZE");
 
@@ -1325,7 +1462,20 @@ process_vacuum(ProcessUtilityArgs *args)
 			}
 		}
 		/* ACL permission checks inside vacuum_rel and analyze_rel called by this ExecVacuum */
-		ExecVacuum(args->parse_state, stmt, is_toplevel);
+		PG_TRY();
+		{
+			stmt->rels = exec_rels;
+			ExecVacuum(args->parse_state, stmt, is_toplevel);
+			stmt->rels = saved_stmt_rels;
+		}
+		PG_CATCH();
+		{
+			stmt->rels = saved_stmt_rels;
+			list_free_deep(vacuum_rels);
+			list_free_deep(ctx.chunk_rels);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
 	}
 	/*
 	Restore original list. stmt->rels which has references to
@@ -1333,6 +1483,8 @@ process_vacuum(ProcessUtilityArgs *args)
 	cleaned up because of which there is a crash.
 	*/
 	stmt->rels = saved_stmt_rels;
+	list_free_deep(vacuum_rels);
+	list_free_deep(ctx.chunk_rels);
 	return DDL_DONE;
 }
 
@@ -1864,7 +2016,9 @@ process_grant_add_by_name(GrantStmt *stmt, bool was_schema_op, Name schema_name,
 	if (!already_added)
 	{
 		process_grant_add_by_rel(stmt,
-								 makeRangeVar(NameStr(*schema_name), NameStr(*table_name), -1));
+								 makeRangeVar(pstrdup(NameStr(*schema_name)),
+											  pstrdup(NameStr(*table_name)),
+											  -1));
 	}
 }
 
@@ -2249,14 +2403,39 @@ reindex_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	ProcessUtilityArgs *args = arg;
 	ReindexStmt *stmt = (ReindexStmt *) args->parsetree;
+	Oid namespace_oid = get_rel_namespace(chunk_relid);
+	char *schema_name = OidIsValid(namespace_oid) ? get_namespace_name(namespace_oid) : NULL;
+	char *table_name = get_rel_name(chunk_relid);
+
+	if (schema_name == NULL || table_name == NULL)
+	{
+		elog(DEBUG1, "skipping reindex for missing chunk relation %u", chunk_relid);
+		return;
+	}
 
 	switch (stmt->kind)
 	{
 		case REINDEX_OBJECT_TABLE:
-			stmt->relation->relname = get_rel_name(chunk_relid);
-			stmt->relation->schemaname = get_namespace_name(get_rel_namespace(chunk_relid));
-			ExecReindex(NULL, stmt, false);
+		{
+			RangeVar *orig_relation = stmt->relation;
+			RangeVar *chunk_relation = makeRangeVar(schema_name, table_name, -1);
+
+			if (orig_relation != NULL)
+				chunk_relation->inh = orig_relation->inh;
+
+			PG_TRY();
+			{
+				stmt->relation = chunk_relation;
+				ExecReindex(NULL, stmt, false);
+			}
+			PG_FINALLY();
+			{
+				stmt->relation = orig_relation;
+				pfree(chunk_relation);
+			}
+			PG_END_TRY();
 			break;
+		}
 		case REINDEX_OBJECT_INDEX:
 			/* Not supported, a.t.m. See note in process_reindex(). */
 			break;
@@ -2596,7 +2775,14 @@ static void
 rename_hypertable_constraint(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	RenameStmt *stmt = (RenameStmt *) arg;
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping constraint rename for missing chunk %u", chunk_relid);
+		return;
+	}
+
 	RangeVar *chunk_rel =
 		makeRangeVar(ts_chunk_get_schema_name(chunk), ts_chunk_get_table_name(chunk), 0);
 	char old_chunk_name[NAMEDATALEN];
@@ -2726,7 +2912,13 @@ static void
 rename_hypertable_trigger(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	RenameStmt *stmt = copyObject(castNode(RenameStmt, arg));
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping trigger rename for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	stmt->relation =
 		makeRangeVar(ts_chunk_get_schema_name(chunk), ts_chunk_get_table_name(chunk), 0);
@@ -3047,7 +3239,13 @@ static void
 process_add_constraint_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	const ChunkConstraintInfo *info = arg;
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping constraint processing for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	switch (info->cmd->subtype)
 	{
@@ -3186,7 +3384,14 @@ process_altertable_validate_constraint_end(Hypertable *ht, AlterTableCmd *cmd)
 static void
 validate_set_not_null(Hypertable *ht, Oid chunk_relid, void *arg)
 {
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping not-null validation for missing chunk %u", chunk_relid);
+		return;
+	}
+
 	if (ts_chunk_is_compressed(chunk))
 	{
 		StringInfoData command;
@@ -3476,7 +3681,12 @@ process_index_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 	IndexInfo *indexinfo;
 	Chunk *chunk;
 
-	chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	chunk = ts_chunk_get_by_relid(chunk_relid, false);
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping index creation for missing chunk %u", chunk_relid);
+		return;
+	}
 	if (IS_OSM_CHUNK(chunk)) /*cannot create index on foreign OSM chunk */
 	{
 		ereport(NOTICE, (errmsg("skipping index creation for tiered data")));
@@ -3573,7 +3783,16 @@ process_index_chunk_multitransaction(int32 hypertable_id, Oid chunk_relid, void 
 	 * being ALTERed or DROPped during this part of index creation.
 	 */
 	chunk_rel = table_open(chunk_relid, ShareLock);
-	chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	chunk = ts_chunk_get_by_relid(chunk_relid, false);
+	if (chunk == NULL)
+	{
+		table_close(chunk_rel, NoLock);
+		ts_catalog_restore_user(&sec_ctx);
+		PopActiveSnapshot();
+		CommitTransactionCommand();
+		elog(DEBUG1, "skipping index creation for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	/*
 	 * Validation happens when creating the hypertable's index, which goes
@@ -4527,6 +4746,13 @@ process_altertable_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	AlterTableCmd *cmd = arg;
 
+	if (!OidIsValid(chunk_relid) ||
+		!SearchSysCacheExists1(RELOID, ObjectIdGetDatum(chunk_relid)))
+	{
+		elog(DEBUG1, "skipping ALTER TABLE for missing chunk relation %u", chunk_relid);
+		return;
+	}
+
 	/* Don't propagate ALTER TABLE SET to foreign tables */
 	if (get_rel_relkind(chunk_relid) == RELKIND_FOREIGN_TABLE &&
 		(cmd->subtype == AT_SetOptions || cmd->subtype == AT_ResetOptions ||
@@ -4576,7 +4802,9 @@ process_altertable_chunk_replica_identity(Hypertable *ht, Oid chunk_relid, void 
 
 	if (stmt->identity_type == REPLICA_IDENTITY_INDEX)
 	{
-		Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+		Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
+		if (chunk == NULL)
+			return;
 		Oid hyper_schema_oid = get_rel_namespace(ht->main_table_relid);
 		Oid hyper_index_oid = get_relname_relid(stmt->name, hyper_schema_oid);
 
@@ -6164,8 +6392,14 @@ static void
 process_drop_constraint_on_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 {
 	const char *hypertable_constraint_name = arg;
-	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, true);
+	Chunk *chunk = ts_chunk_get_by_relid(chunk_relid, false);
 	Oid chunk_con_oid;
+
+	if (chunk == NULL)
+	{
+		elog(DEBUG1, "skipping constraint drop for missing chunk %u", chunk_relid);
+		return;
+	}
 
 	/* Inherited FKs share the parent's name on the chunk; drop the unmanaged
 	 * ones (PG cascades the rest via conparentid). Foreign-table OSM chunks
