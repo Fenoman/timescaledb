@@ -116,6 +116,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     partitioned_hypertable.sql
     pg_dump.sql
     symbol_conflict.sql
+    cache_invalidate_uaf.sql
     test_tss_callbacks.sql
     test_utils.sql
     loader.sql)
@@ -123,7 +124,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     list(APPEND TEST_FILES telemetry.sql)
   endif()
 
-  list(APPEND SOLO_TESTS cache_invalidate_uaf.sql)
+  list(APPEND SOLO_TESTS cache_invalidate_uaf)
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
 
 if((${PG_VERSION_MAJOR} GREATER_EQUAL "17"))
