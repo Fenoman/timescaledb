@@ -629,6 +629,8 @@ decompress_chunk_impl(Chunk *uncompressed_chunk, bool if_compressed)
 	const char *uncompressed_schema_name = ts_chunk_get_schema_name(uncompressed_chunk);
 	const char *uncompressed_table_name = ts_chunk_get_table_name(uncompressed_chunk);
 
+	DEBUG_WAITPOINT("decompress_chunk_impl_before_lock");
+
 	ereport(DEBUG1,
 			(errmsg("acquiring locks for converting to rowstore \"%s.%s\"",
 					uncompressed_schema_name,
@@ -672,6 +674,22 @@ decompress_chunk_impl(Chunk *uncompressed_chunk, bool if_compressed)
 
 	/* Throw error if chunk has invalid status for operation */
 	ts_chunk_validate_chunk_status_for_operation(chunk_state_after_lock, CHUNK_DECOMPRESS, true);
+
+	Oid locked_compressed_relid =
+		ts_relation_get_compressed_relid(chunk_state_after_lock->fd.relid);
+	if (!OidIsValid(locked_compressed_relid))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				 errmsg("chunk \"%s\" is missing its compressed relation",
+						get_rel_name(chunk_state_after_lock->fd.relid))));
+	}
+	if (locked_compressed_relid != compressed_relid)
+	{
+		compressed_relid = locked_compressed_relid;
+		LockRelationOid(compressed_relid, ExclusiveLock);
+	}
+	uncompressed_chunk = chunk_state_after_lock;
 
 	decompress_chunk(compressed_relid, uncompressed_chunk->fd.relid);
 
