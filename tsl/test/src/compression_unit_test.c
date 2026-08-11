@@ -39,7 +39,139 @@
 
 #define TEST_ELEMENTS 1015
 
+typedef struct TestDictionaryCompressed
+{
+	CompressedDataHeaderFields;
+	uint8 has_nulls;
+	uint8 padding[2];
+	Oid element_type;
+	uint32 num_distinct;
+	uint64 alignment_sentinel[FLEXIBLE_ARRAY_MEMBER];
+} TestDictionaryCompressed;
+
+typedef struct TestArrayCompressed
+{
+	CompressedDataHeaderFields;
+	uint8 has_nulls;
+	uint8 padding[6];
+	Oid element_type;
+	uint64 alignment_sentinel[FLEXIBLE_ARRAY_MEMBER];
+} TestArrayCompressed;
+
 TS_FUNCTION_INFO_V1(ts_test_compression);
+
+static void
+test_simple8b_corrupt_reverse_capacity_inner(void)
+{
+	Simple8bRleSerialized *serialized =
+		palloc0(sizeof(Simple8bRleSerialized) + 2 * sizeof(uint64));
+	serialized->num_elements = 2;
+	serialized->num_blocks = 1;
+	serialized->slots[0] = SIMPLE8B_FULL_BLOCK_SELECTOR;
+	serialized->slots[1] = 42;
+
+	Simple8bRleDecompressionIterator iter;
+	simple8brle_decompression_iterator_init_reverse(&iter, serialized);
+	(void) simple8brle_decompression_iterator_try_next_reverse(&iter);
+}
+
+static void
+test_simple8b_corrupt_reverse_capacity(void)
+{
+	TestEnsureError(test_simple8b_corrupt_reverse_capacity_inner());
+}
+
+static Simple8bRleSerialized *
+test_dictionary_bitmap(void *compressed)
+{
+	return (Simple8bRleSerialized *) ((char *) compressed + sizeof(TestDictionaryCompressed));
+}
+
+static Simple8bRleSerialized *
+test_array_sizes(void *compressed)
+{
+	return (Simple8bRleSerialized *) ((char *) compressed + sizeof(TestArrayCompressed));
+}
+
+static void
+test_array_corrupt_reverse_size_inner(void)
+{
+	ArrayCompressor *compressor = array_compressor_alloc(INT4OID);
+	array_compressor_append(compressor, Int32GetDatum(10));
+	void *compressed = array_compressor_finish(compressor);
+	Simple8bRleSerialized *sizes = test_array_sizes(compressed);
+
+	sizes->slots[0] = SIMPLE8B_RLE_SELECTOR;
+	sizes->slots[1] = (1ULL << SIMPLE8B_RLE_MAX_VALUE_BITS) | 8;
+
+	DecompressionIterator *iter =
+		tsl_array_decompression_iterator_from_datum_reverse(PointerGetDatum(compressed), INT4OID);
+	(void) array_decompression_iterator_try_next_reverse(iter);
+}
+
+static void
+test_array_corrupt_reverse_size(void)
+{
+	TestEnsureError(test_array_corrupt_reverse_size_inner());
+}
+
+static void
+test_dictionary_corrupt_reverse_index_inner(void)
+{
+	DictionaryCompressor *compressor = dictionary_compressor_alloc(INT4OID);
+	dictionary_compressor_append(compressor, Int32GetDatum(10));
+	void *compressed = dictionary_compressor_finish(compressor);
+	Simple8bRleSerialized *bitmap = test_dictionary_bitmap(compressed);
+
+	bitmap->slots[0] = SIMPLE8B_RLE_SELECTOR;
+	bitmap->slots[1] = (1ULL << SIMPLE8B_RLE_MAX_VALUE_BITS) | 1;
+
+	DecompressionIterator *iter =
+		tsl_dictionary_decompression_iterator_from_datum_reverse(PointerGetDatum(compressed), INT4OID);
+	(void) dictionary_decompression_iterator_try_next_reverse(iter);
+}
+
+static void
+test_dictionary_corrupt_reverse_index(void)
+{
+	TestEnsureError(test_dictionary_corrupt_reverse_index_inner());
+}
+
+static void
+test_dictionary_corrupt_too_few_values_inner(void)
+{
+	DictionaryCompressor *compressor = dictionary_compressor_alloc(INT4OID);
+	dictionary_compressor_append(compressor, Int32GetDatum(10));
+	TestDictionaryCompressed *compressed = dictionary_compressor_finish(compressor);
+
+	compressed->num_distinct = 2;
+	(void) tsl_dictionary_decompression_iterator_from_datum_forward(PointerGetDatum(compressed),
+																	 INT4OID);
+}
+
+static void
+test_dictionary_corrupt_too_few_values(void)
+{
+	TestEnsureError(test_dictionary_corrupt_too_few_values_inner());
+}
+
+static void
+test_dictionary_corrupt_extra_values_inner(void)
+{
+	DictionaryCompressor *compressor = dictionary_compressor_alloc(INT4OID);
+	dictionary_compressor_append(compressor, Int32GetDatum(10));
+	TestDictionaryCompressed *compressed = dictionary_compressor_finish(compressor);
+
+	compressed->num_distinct = 0;
+	(void) tsl_dictionary_decompression_iterator_from_datum_forward(PointerGetDatum(compressed),
+																	 INT4OID);
+}
+
+static void
+test_dictionary_corrupt_extra_values(void)
+{
+	TestEnsureError(test_dictionary_corrupt_extra_values_inner());
+}
 
 static void
 test_int_array()
@@ -1717,6 +1849,11 @@ ts_test_compression(PG_FUNCTION_ARGS)
 	test_bool();
 	test_null();
 	test_simple8b_rle();
+	test_simple8b_corrupt_reverse_capacity();
+	test_array_corrupt_reverse_size();
+	test_dictionary_corrupt_reverse_index();
+	test_dictionary_corrupt_too_few_values();
+	test_dictionary_corrupt_extra_values();
 	test_uuid();
 
 	/* Some tests for zig-zag encoding overflowing the original element width. */
