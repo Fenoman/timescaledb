@@ -56,6 +56,14 @@ typedef struct
  */
 static Oid watermark_function_oid = InvalidOid;
 
+/* Oids of the boundary converter (timestamp conversion) functions. Like the watermark
+ * function Oid above, they will not change over the lifetime of a backend session, so we
+ * can lookup them only once instead of once per planned query.
+ */
+static Oid to_date_function_oid = InvalidOid;
+static Oid to_timestamp_function_oid = InvalidOid;
+static Oid to_timestamptz_function_oid = InvalidOid;
+
 /*
  * Walk through the elements of the query and detect the watermark functions and their
  * parent functions.
@@ -353,17 +361,28 @@ constify_cagg_watermark(Query *parse)
 	 * For example: to_timestamp(cagg_watermark(XX)). We collect the Oid of all these
 	 * converter functions in the list to_timestamp_func_oids.
 	 */
+	if (!OidIsValid(to_date_function_oid) || !OidIsValid(to_timestamp_function_oid) ||
+		!OidIsValid(to_timestamptz_function_oid))
+	{
+		to_date_function_oid = cagg_get_boundary_converter_funcoid(DATEOID);
+		to_timestamp_function_oid = cagg_get_boundary_converter_funcoid(TIMESTAMPOID);
+		to_timestamptz_function_oid = cagg_get_boundary_converter_funcoid(TIMESTAMPTZOID);
+
+		Ensure(OidIsValid(to_date_function_oid) && OidIsValid(to_timestamp_function_oid) &&
+				   OidIsValid(to_timestamptz_function_oid),
+			   "unable to determine boundary converter function Oids");
+	}
+
 	context.to_timestamp_func_oids = NIL;
 
 	context.to_timestamp_func_oids =
-		lappend_oid(context.to_timestamp_func_oids, cagg_get_boundary_converter_funcoid(DATEOID));
-
-	context.to_timestamp_func_oids = lappend_oid(context.to_timestamp_func_oids,
-												 cagg_get_boundary_converter_funcoid(TIMESTAMPOID));
+		lappend_oid(context.to_timestamp_func_oids, to_date_function_oid);
 
 	context.to_timestamp_func_oids =
-		lappend_oid(context.to_timestamp_func_oids,
-					cagg_get_boundary_converter_funcoid(TIMESTAMPTZOID));
+		lappend_oid(context.to_timestamp_func_oids, to_timestamp_function_oid);
+
+	context.to_timestamp_func_oids =
+		lappend_oid(context.to_timestamp_func_oids, to_timestamptz_function_oid);
 
 	/* Walk through the query and collect function information */
 	constify_cagg_watermark_walker(node, &context);
