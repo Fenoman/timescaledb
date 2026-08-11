@@ -1,7 +1,7 @@
 # Remediation after the 2.29.1 rebase
 
-**Date:** 2026-08-11  
-**Base:** `local_2.29.1` at `38f6f7e62`  
+**Date:** 2026-08-11
+**Base:** `local_2.29.1` at `38f6f7e62`
 **Working branch:** `codex/timescaledb-audit-remediation`
 
 ## Purpose
