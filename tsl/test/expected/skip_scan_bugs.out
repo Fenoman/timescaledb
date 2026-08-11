@@ -38,7 +38,7 @@ WHERE sale_day > '2026-01-31';
    ->  Merge Append
          Sort Key: t_10421.style
          ->  Custom Scan (SkipScan) on _hyper_1_1_chunk
-               ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+               ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
                      Vectorized Filter: (sale_day > '01-31-2026'::date)
                      ->  Index Scan using _hyper_1_1_chunk_compressed_style__ts_meta_v2_first_sale_da_idx on _hyper_1_1_chunk_compressed
                            Index Cond: (_ts_meta_v2_first_sale_day > '01-31-2026'::date)

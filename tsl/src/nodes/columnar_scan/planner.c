@@ -42,7 +42,7 @@
 #include "vector_predicates.h"
 
 static CustomScanMethods columnar_scan_plan_methods = {
-	.CustomName = "ColumnarScan",
+	.CustomName = "TimescaleDBColumnarScan",
 	.CreateCustomScanState = columnar_scan_state_create,
 };
 
