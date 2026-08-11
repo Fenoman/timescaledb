@@ -790,6 +790,12 @@ SELECT add_job('custom_proc', '1h', config => '{"type":"procedure"}'::jsonb) AS 
 SELECT ts_test_bgw_job_function_call_string(:job_func);
 SELECT ts_test_bgw_job_function_call_string(:job_proc);
 
+-- A procedure referenced by a job cannot be removed. Remove the job before
+-- dropping the procedure.
+\set ON_ERROR_STOP 0
+DROP PROCEDURE custom_proc(jobid int, args jsonb);
+\set ON_ERROR_STOP 1
+
 -- Point the job at a procedure that does not exist (dropping the procedure
 -- is blocked while a job depends on it) and check that building the call
 -- string errors out.
@@ -800,6 +806,7 @@ SELECT ts_test_bgw_job_function_call_string(:job_proc);
 
 SELECT delete_job(:job_func);
 SELECT delete_job(:job_proc);
+DROP PROCEDURE custom_proc(jobid int, args jsonb);
 
 -- Test work_mem config option in job execution
 CREATE TABLE work_mem_log(job_id int, work_mem_value text);

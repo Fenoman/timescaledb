@@ -1192,6 +1192,12 @@ SELECT ts_test_bgw_job_function_call_string(:job_proc);
 ----------------------------------------------------------
  CALL public.custom_proc('1022', '{"type": "procedure"}')
 
+-- A procedure referenced by a job cannot be removed. Remove the job before
+-- dropping the procedure.
+\set ON_ERROR_STOP 0
+DROP PROCEDURE custom_proc(jobid int, args jsonb);
+ERROR:  cannot drop custom_proc because background job 1022 depends on it
+\set ON_ERROR_STOP 1
 -- Point the job at a procedure that does not exist (dropping the procedure
 -- is blocked while a job depends on it) and check that building the call
 -- string errors out.
@@ -1210,6 +1216,7 @@ SELECT delete_job(:job_proc);
 ------------
  
 
+DROP PROCEDURE custom_proc(jobid int, args jsonb);
 -- Test work_mem config option in job execution
 CREATE TABLE work_mem_log(job_id int, work_mem_value text);
 CREATE OR REPLACE PROCEDURE log_work_mem(job_id int, config jsonb) LANGUAGE PLPGSQL AS
