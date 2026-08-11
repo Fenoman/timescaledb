@@ -3,6 +3,12 @@
 -- LICENSE-APACHE for a copy of the license.
 
 \c :TEST_DBNAME :ROLE_SUPERUSER
+-- Telemetry is disabled by default. SHOW reflects the effective setting
+-- (the test harness also forces "off" via postgresql.conf), while
+-- boot_val exposes the compiled-in default and guards against the
+-- default being flipped back to "basic".
+SHOW timescaledb.telemetry_level;
+SELECT boot_val FROM pg_settings WHERE name = 'timescaledb.telemetry_level';
 CREATE OR REPLACE FUNCTION _timescaledb_internal.test_status(int) RETURNS JSONB
     AS :MODULE_PATHNAME, 'ts_test_status' LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE OR REPLACE FUNCTION _timescaledb_internal.test_status_ssl(int) RETURNS JSONB
