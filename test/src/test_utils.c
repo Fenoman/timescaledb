@@ -59,7 +59,8 @@ test_explain_in_executor_start(QueryDesc *query_desc, int eflags)
 		standard_ExecutorStart(query_desc, eflags);
 	}
 
-	if (explain_in_executor_start_enabled && query_desc->operation == CMD_INSERT)
+	if (explain_in_executor_start_enabled &&
+		(query_desc->operation == CMD_INSERT || query_desc->operation == CMD_MERGE))
 	{
 		ExplainState *es = NewExplainState();
 		ExplainPrintPlan(es, query_desc);

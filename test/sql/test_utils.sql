@@ -87,6 +87,11 @@ CREATE TABLE early_explain_insert (time timestamptz NOT NULL, value integer);
 DO $$ BEGIN PERFORM create_hypertable('early_explain_insert', 'time'); END $$;
 DO $$ BEGIN PERFORM test.enable_explain_in_executor_start(); END $$;
 INSERT INTO early_explain_insert VALUES ('2026-01-01', 1);
+MERGE INTO early_explain_insert h
+USING (VALUES ('2026-01-02'::timestamptz, 2)) AS s(t, v)
+ON h.time = s.t
+WHEN MATCHED THEN UPDATE SET value = s.v
+WHEN NOT MATCHED THEN INSERT VALUES (s.t, s.v);
 DO $$ BEGIN PERFORM test.disable_explain_in_executor_start(); END $$;
 -- End early ExecutorStart EXPLAIN test.
 
