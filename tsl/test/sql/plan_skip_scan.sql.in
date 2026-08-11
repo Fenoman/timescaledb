@@ -23,6 +23,16 @@
 \set TABLE skip_scan_htcl
 \ir include/skip_scan_load_comp_query.sql
 
+SET max_parallel_workers_per_gather = 0;
+SET enable_seqscan = false;
+EXPLAIN (buffers off, timing off, summary off)
+SELECT DISTINCT ON (dev) dev, time
+FROM skip_scan_htcl
+WHERE time > 5
+ORDER BY dev, time DESC;
+RESET enable_seqscan;
+RESET max_parallel_workers_per_gather;
+
 -- try one query with EXPLAIN only for coverage
 EXPLAIN (buffers off, costs off, timing off, summary off) SELECT DISTINCT ON (dev_name) dev_name FROM skip_scan;
 EXPLAIN (buffers off, costs off, timing off, summary off) SELECT DISTINCT ON (dev_name) dev_name FROM skip_scan_ht;
