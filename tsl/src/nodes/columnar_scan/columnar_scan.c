@@ -45,7 +45,7 @@
 #include "utils.h"
 
 static CustomPathMethods columnar_scan_path_methods = {
-	.CustomName = "ColumnarScan",
+	.CustomName = "TimescaleDBColumnarScan",
 	.PlanCustomPath = columnar_scan_plan_create,
 };
 

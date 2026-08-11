@@ -618,7 +618,7 @@ EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF)
 SELECT * FROM rsi_integrity WHERE device = 'd1' AND humidity = 42 AND label = 'label_0';
 --- QUERY PLAN ---
  Append (actual rows=0.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _hyper_2_3_chunk (actual rows=0.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_3_chunk (actual rows=0.00 loops=1)
          Vectorized Filter: ((humidity = 42) AND (label = 'label_0'::text))
          ->  Index Scan using _hyper_2_3_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_2_3_chunk_compressed (actual rows=0.00 loops=1)
                Index Cond: (device = 'd1'::text)

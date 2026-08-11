@@ -321,7 +321,7 @@ set enable_bitmapscan to off;
 explain (costs off, summary off, buffers off)
 select * from fl_push_asc where ts = 2500;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_11_11_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_11_11_chunk
    Vectorized Filter: (ts = 2500)
    ->  Index Scan using _hyper_11_11_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_11_11_chunk_compressed
          Index Cond: ((_ts_meta_v2_first_ts <= 2500) AND (_ts_meta_v2_last_ts >= 2500))
@@ -329,7 +329,7 @@ select * from fl_push_asc where ts = 2500;
 explain (costs off, summary off, buffers off)
 select * from fl_push_asc where ts >= 2500 and ts <= 2600;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_11_11_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_11_11_chunk
    Vectorized Filter: ((ts >= 2500) AND (ts <= 2600))
    ->  Index Scan using _hyper_11_11_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_11_11_chunk_compressed
          Index Cond: ((_ts_meta_v2_first_ts <= 2600) AND (_ts_meta_v2_last_ts >= 2500))
@@ -358,7 +358,7 @@ set enable_bitmapscan to off;
 explain (costs off, summary off, buffers off)
 select * from fl_push_desc where ts = 2500;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_12_17_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_12_17_chunk
    Vectorized Filter: (ts = 2500)
    ->  Index Scan using _hyper_12_17_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_12_17_chunk_compressed
          Index Cond: ((_ts_meta_v2_first_ts >= 2500) AND (_ts_meta_v2_last_ts <= 2500))
@@ -387,7 +387,7 @@ analyze fl_push_null;
 explain (costs off, summary off, buffers off)
 select * from fl_push_null where val = 2500;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_13_21_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_13_21_chunk
    Vectorized Filter: (val = 2500)
    ->  Seq Scan on _hyper_13_21_chunk_compressed
          Filter: ((_ts_meta_min_1 <= 2500) AND (_ts_meta_max_1 >= 2500))
@@ -415,7 +415,7 @@ set enable_bitmapscan to off;
 explain (costs off, summary off, buffers off)
 select * from fl_push_compound where a = 2500;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_14_24_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_14_24_chunk
    Vectorized Filter: (a = 2500)
    ->  Index Scan using _hyper_14_24_chunk_compressed__ts_meta_v2_first_a__ts_meta__idx on _hyper_14_24_chunk_compressed
          Index Cond: ((_ts_meta_v2_first_a <= 2500) AND (_ts_meta_v2_last_a >= 2500))
@@ -428,27 +428,27 @@ explain (costs off, summary off, buffers off)
 select * from fl_push_compound where b = 50;
 --- QUERY PLAN ---
  Append
-   ->  Custom Scan (ColumnarScan) on _hyper_14_22_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_22_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_22_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
-   ->  Custom Scan (ColumnarScan) on _hyper_14_23_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_23_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_23_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
-   ->  Custom Scan (ColumnarScan) on _hyper_14_24_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_24_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_24_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
-   ->  Custom Scan (ColumnarScan) on _hyper_14_25_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_25_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_25_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
-   ->  Custom Scan (ColumnarScan) on _hyper_14_26_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_26_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_26_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
-   ->  Custom Scan (ColumnarScan) on _hyper_14_27_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_14_27_chunk
          Vectorized Filter: (b = 50)
          ->  Seq Scan on _hyper_14_27_chunk_compressed
                Filter: ((_ts_meta_min_2 <= 50) AND (_ts_meta_max_2 >= 50))
@@ -515,11 +515,11 @@ select * from fl_legacy_order order by ts desc;
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on fl_legacy_order
    Order: fl_legacy_order.ts DESC
-   ->  Custom Scan (ColumnarScan) on _hyper_16_32_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_32_chunk
          ->  Index Scan using _hyper_16_32_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_16_32_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_16_31_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_31_chunk
          ->  Index Scan using _hyper_16_31_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_16_31_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_16_30_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_30_chunk
          ->  Index Scan using _hyper_16_30_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_16_30_chunk_compressed
 
 -- Also the actual data ordering, under the plan shown above.
@@ -558,11 +558,11 @@ select * from fl_legacy_order order by ts desc;
 --- QUERY PLAN ---
  Custom Scan (ChunkAppend) on fl_legacy_order
    Order: fl_legacy_order.ts DESC
-   ->  Custom Scan (ColumnarScan) on _hyper_16_32_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_32_chunk
          ->  Index Scan using _hyper_16_32_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_16_32_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_16_31_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_31_chunk
          ->  Index Scan using _hyper_16_31_chunk_compressed__ts_meta_v2_first_ts__ts_meta_idx on _hyper_16_31_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_16_30_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_16_30_chunk
          ->  Index Scan using _hyper_16_30_chunk_compressed__ts_meta_v2_last_ts__ts_meta__idx on _hyper_16_30_chunk_compressed
 
 -- Ordering is correct across the legacy and current chunk boundary,

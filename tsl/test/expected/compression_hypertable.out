@@ -146,7 +146,7 @@ SELECT ch.relid::text AS chunk
 explain (analyze, verbose, timing off, buffers off, costs off, summary off)
 select * from :chunk;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=15.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=15.00 loops=1)
    Output: _hyper_1_1_chunk."Time", _hyper_1_1_chunk.i, _hyper_1_1_chunk.b, _hyper_1_1_chunk.t
    Bulk Decompression: true
    ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed (actual rows=1.00 loops=1)
@@ -156,7 +156,7 @@ set timescaledb.enable_bulk_decompression to false;
 explain (analyze, verbose, timing off, buffers off, costs off, summary off)
 select * from :chunk;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=15.00 loops=1)
+ Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk (actual rows=15.00 loops=1)
    Output: _hyper_1_1_chunk."Time", _hyper_1_1_chunk.i, _hyper_1_1_chunk.b, _hyper_1_1_chunk.t
    Bulk Decompression: false
    ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed (actual rows=1.00 loops=1)

@@ -920,9 +920,9 @@ SELECT * FROM test.show_subtables('ht_try');
 EXPLAIN (ANALYZE, BUFFERS OFF, COSTS OFF, TIMING OFF, SUMMARY OFF) SELECT * FROM ht_try;
 --- QUERY PLAN ---
  Append (actual rows=3.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _hyper_4_9_chunk (actual rows=1.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_9_chunk (actual rows=1.00 loops=1)
          ->  Seq Scan on _hyper_4_9_chunk_compressed (actual rows=1.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _hyper_4_17_chunk (actual rows=1.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_4_17_chunk (actual rows=1.00 loops=1)
          ->  Seq Scan on _hyper_4_17_chunk_compressed (actual rows=1.00 loops=1)
    ->  Seq Scan on _hyper_4_17_chunk (actual rows=1.00 loops=1)
 

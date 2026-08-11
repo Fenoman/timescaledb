@@ -31,7 +31,7 @@ select sum(abs(v - 500)), count(abs(v - 500)) from cse_explain;
          Output: (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL count(abs((_hyper_1_1_chunk.v - '500'::double precision))))
          Grouping Policy: all compressed batches
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision))
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -47,7 +47,7 @@ select sum(abs(v - 500)), count(abs(v - 500)),
          Output: (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL count(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL sum(length(_hyper_1_1_chunk.x))), (PARTIAL count(length(_hyper_1_1_chunk.x)))
          Grouping Policy: all compressed batches
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision)), length(_hyper_1_1_chunk.x)
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v, _hyper_1_1_chunk.x
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -64,7 +64,7 @@ select b, sum(abs(v - 500)), count(abs(v - 500))
          Output: _hyper_1_1_chunk.b, (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL count(abs((_hyper_1_1_chunk.v - '500'::double precision))))
          Grouping Policy: per compressed batch
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision))
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.b, _hyper_1_1_chunk.v
                ->  Sort
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -85,7 +85,7 @@ select sum(abs(v - 500)) filter (where b),
          Output: (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision))) FILTER (WHERE _hyper_1_1_chunk.b)), (PARTIAL count(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision))))
          Grouping Policy: all compressed batches
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision))
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v, _hyper_1_1_chunk.b
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -99,7 +99,7 @@ select sum(v), count(i) from cse_explain;
    ->  Custom Scan (VectorAgg)
          Output: (PARTIAL sum(_hyper_1_1_chunk.v)), (PARTIAL count(_hyper_1_1_chunk.i))
          Grouping Policy: all compressed batches
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v, _hyper_1_1_chunk.i
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -115,7 +115,7 @@ select sum(abs(v - 500) + length(x)), sum(abs(v - 500) - length(x))
          Output: (PARTIAL sum((abs((_hyper_1_1_chunk.v - '500'::double precision)) + (length(_hyper_1_1_chunk.x))::double precision))), (PARTIAL sum((abs((_hyper_1_1_chunk.v - '500'::double precision)) - (length(_hyper_1_1_chunk.x))::double precision)))
          Grouping Policy: all compressed batches
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision)), length(_hyper_1_1_chunk.x)
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v, _hyper_1_1_chunk.x
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -131,7 +131,7 @@ select sum(abs(v - 500)), count(abs(v - 500)), min(abs(v - 500))
          Output: (PARTIAL sum(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL count(abs((_hyper_1_1_chunk.v - '500'::double precision)))), (PARTIAL min(abs((_hyper_1_1_chunk.v - '500'::double precision))))
          Grouping Policy: all compressed batches
          Cached Subexpressions: abs((_hyper_1_1_chunk.v - '500'::double precision))
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.v
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v
@@ -146,7 +146,7 @@ select sum((b = (i > 0))::int), count(b = (i > 0)) from cse_explain;
          Output: (PARTIAL sum(((_hyper_1_1_chunk.b = (_hyper_1_1_chunk.i > 0)))::integer)), (PARTIAL count((_hyper_1_1_chunk.b = (_hyper_1_1_chunk.i > 0))))
          Grouping Policy: all compressed batches
          Cached Subexpressions: (_hyper_1_1_chunk.b = (_hyper_1_1_chunk.i > 0))
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_1_chunk
                Output: _hyper_1_1_chunk.b, _hyper_1_1_chunk.i
                ->  Seq Scan on _timescaledb_internal._hyper_1_1_chunk_compressed
                      Output: _hyper_1_1_chunk_compressed._ts_meta_count, _hyper_1_1_chunk_compressed.i, _hyper_1_1_chunk_compressed.x, _hyper_1_1_chunk_compressed.b, _hyper_1_1_chunk_compressed._ts_meta_min_1, _hyper_1_1_chunk_compressed._ts_meta_max_1, _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts, _hyper_1_1_chunk_compressed.ts, _hyper_1_1_chunk_compressed.v

@@ -428,7 +428,7 @@ WHERE id >= to_uuidv7_boundary('Wed Aug 13 2025 PDT') AND
    ->  Custom Scan (VectorAgg)
          Output: (PARTIAL count(*))
          Grouping Policy: all compressed batches
-         ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_3_16_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_3_16_chunk
                Filter: ((_hyper_3_16_chunk.id >= '0198a23a-8180-7000-8000-000000000000'::uuid) AND (_hyper_3_16_chunk.id < '0198b1ad-9580-7000-8000-000000000000'::uuid))
                ->  Index Scan using _hyper_3_16_chunk_compressed__ts_meta_v2_first_id__ts_meta__idx on _timescaledb_internal._hyper_3_16_chunk_compressed
                      Output: _hyper_3_16_chunk_compressed._ts_meta_count, _hyper_3_16_chunk_compressed._ts_meta_min_1, _hyper_3_16_chunk_compressed._ts_meta_max_1, _hyper_3_16_chunk_compressed._ts_meta_v2_first_id, _hyper_3_16_chunk_compressed._ts_meta_v2_last_id, _hyper_3_16_chunk_compressed.id, _hyper_3_16_chunk_compressed.value

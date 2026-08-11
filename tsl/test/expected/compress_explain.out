@@ -35,12 +35,12 @@ SELECT compress_chunk(ch) FROM show_chunks('metrics') ch;
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3001.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_3_chunk.device
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_3_chunk_compressed (actual rows=1.00 loops=1)
                Output: _hyper_1_3_chunk_compressed._ts_meta_count, _hyper_1_3_chunk_compressed.device, _hyper_1_3_chunk_compressed._ts_meta_min_1, _hyper_1_3_chunk_compressed._ts_meta_max_1, _hyper_1_3_chunk_compressed._ts_meta_v2_first_time, _hyper_1_3_chunk_compressed._ts_meta_v2_last_time, _hyper_1_3_chunk_compressed."time", _hyper_1_3_chunk_compressed.value
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_4_chunk.device
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_4_chunk_compressed (actual rows=3.00 loops=1)
@@ -61,13 +61,13 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3001.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_3_chunk.device
          Chunk Status: FROZEN
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_3_chunk_compressed (actual rows=1.00 loops=1)
                Output: _hyper_1_3_chunk_compressed._ts_meta_count, _hyper_1_3_chunk_compressed.device, _hyper_1_3_chunk_compressed._ts_meta_min_1, _hyper_1_3_chunk_compressed._ts_meta_max_1, _hyper_1_3_chunk_compressed._ts_meta_v2_first_time, _hyper_1_3_chunk_compressed._ts_meta_v2_last_time, _hyper_1_3_chunk_compressed."time", _hyper_1_3_chunk_compressed.value
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_4_chunk.device
          Chunk Status: FROZEN
          Bulk Decompression: false
@@ -90,7 +90,7 @@ INSERT INTO metrics SELECT '2025-01-01'::timestamptz + (i || ' minute')::interva
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3012.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_3_chunk.device
          Chunk Status: PARTIAL
          Bulk Decompression: false
@@ -98,7 +98,7 @@ INSERT INTO metrics SELECT '2025-01-01'::timestamptz + (i || ' minute')::interva
                Output: _hyper_1_3_chunk_compressed._ts_meta_count, _hyper_1_3_chunk_compressed.device, _hyper_1_3_chunk_compressed._ts_meta_min_1, _hyper_1_3_chunk_compressed._ts_meta_max_1, _hyper_1_3_chunk_compressed._ts_meta_v2_first_time, _hyper_1_3_chunk_compressed._ts_meta_v2_last_time, _hyper_1_3_chunk_compressed."time", _hyper_1_3_chunk_compressed.value
    ->  Seq Scan on _timescaledb_internal._hyper_1_3_chunk (actual rows=11.00 loops=1)
          Output: _hyper_1_3_chunk.device
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_4_chunk.device
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_4_chunk_compressed (actual rows=3.00 loops=1)
@@ -120,7 +120,7 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3012.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_3_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_3_chunk.device
          Chunk Status: FROZEN, PARTIAL
          Bulk Decompression: false
@@ -128,7 +128,7 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
                Output: _hyper_1_3_chunk_compressed._ts_meta_count, _hyper_1_3_chunk_compressed.device, _hyper_1_3_chunk_compressed._ts_meta_min_1, _hyper_1_3_chunk_compressed._ts_meta_max_1, _hyper_1_3_chunk_compressed._ts_meta_v2_first_time, _hyper_1_3_chunk_compressed._ts_meta_v2_last_time, _hyper_1_3_chunk_compressed."time", _hyper_1_3_chunk_compressed.value
    ->  Seq Scan on _timescaledb_internal._hyper_1_3_chunk (actual rows=11.00 loops=1)
          Output: _hyper_1_3_chunk.device
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_4_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_4_chunk.device
          Chunk Status: FROZEN
          Bulk Decompression: false
@@ -157,13 +157,13 @@ INSERT INTO metrics SELECT '2025-01-01'::timestamptz + (i || ' minute')::interva
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3001.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_5_chunk.device
          Chunk Status: UNORDERED
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_5_chunk_compressed (actual rows=1.00 loops=1)
                Output: _hyper_1_5_chunk_compressed._ts_meta_count, _hyper_1_5_chunk_compressed.device, _hyper_1_5_chunk_compressed._ts_meta_min_1, _hyper_1_5_chunk_compressed._ts_meta_max_1, _hyper_1_5_chunk_compressed._ts_meta_v2_first_time, _hyper_1_5_chunk_compressed._ts_meta_v2_last_time, _hyper_1_5_chunk_compressed."time", _hyper_1_5_chunk_compressed.value
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_6_chunk.device
          Chunk Status: UNORDERED
          Bulk Decompression: false
@@ -185,13 +185,13 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3001.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_5_chunk.device
          Chunk Status: UNORDERED, FROZEN
          Bulk Decompression: false
          ->  Seq Scan on _timescaledb_internal._hyper_1_5_chunk_compressed (actual rows=1.00 loops=1)
                Output: _hyper_1_5_chunk_compressed._ts_meta_count, _hyper_1_5_chunk_compressed.device, _hyper_1_5_chunk_compressed._ts_meta_min_1, _hyper_1_5_chunk_compressed._ts_meta_max_1, _hyper_1_5_chunk_compressed._ts_meta_v2_first_time, _hyper_1_5_chunk_compressed._ts_meta_v2_last_time, _hyper_1_5_chunk_compressed."time", _hyper_1_5_chunk_compressed.value
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_6_chunk.device
          Chunk Status: UNORDERED, FROZEN
          Bulk Decompression: false
@@ -215,7 +215,7 @@ INSERT INTO metrics SELECT '2025-01-01'::timestamptz + (i || ' minute')::interva
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3012.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_5_chunk.device
          Chunk Status: UNORDERED, PARTIAL
          Bulk Decompression: false
@@ -223,7 +223,7 @@ INSERT INTO metrics SELECT '2025-01-01'::timestamptz + (i || ' minute')::interva
                Output: _hyper_1_5_chunk_compressed._ts_meta_count, _hyper_1_5_chunk_compressed.device, _hyper_1_5_chunk_compressed._ts_meta_min_1, _hyper_1_5_chunk_compressed._ts_meta_max_1, _hyper_1_5_chunk_compressed._ts_meta_v2_first_time, _hyper_1_5_chunk_compressed._ts_meta_v2_last_time, _hyper_1_5_chunk_compressed."time", _hyper_1_5_chunk_compressed.value
    ->  Seq Scan on _timescaledb_internal._hyper_1_5_chunk (actual rows=11.00 loops=1)
          Output: _hyper_1_5_chunk.device
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_6_chunk.device
          Chunk Status: UNORDERED
          Bulk Decompression: false
@@ -246,7 +246,7 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
 :PREFIX SELECT device FROM metrics;
 --- QUERY PLAN ---
  Append (actual rows=3012.00 loops=1)
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_5_chunk (actual rows=960.00 loops=1)
          Output: _hyper_1_5_chunk.device
          Chunk Status: UNORDERED, FROZEN, PARTIAL
          Bulk Decompression: false
@@ -254,7 +254,7 @@ SELECT _timescaledb_functions.freeze_chunk(ch) FROM show_chunks('metrics') AS ch
                Output: _hyper_1_5_chunk_compressed._ts_meta_count, _hyper_1_5_chunk_compressed.device, _hyper_1_5_chunk_compressed._ts_meta_min_1, _hyper_1_5_chunk_compressed._ts_meta_max_1, _hyper_1_5_chunk_compressed._ts_meta_v2_first_time, _hyper_1_5_chunk_compressed._ts_meta_v2_last_time, _hyper_1_5_chunk_compressed."time", _hyper_1_5_chunk_compressed.value
    ->  Seq Scan on _timescaledb_internal._hyper_1_5_chunk (actual rows=11.00 loops=1)
          Output: _hyper_1_5_chunk.device
-   ->  Custom Scan (ColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _timescaledb_internal._hyper_1_6_chunk (actual rows=2041.00 loops=1)
          Output: _hyper_1_6_chunk.device
          Chunk Status: UNORDERED, FROZEN
          Bulk Decompression: false
