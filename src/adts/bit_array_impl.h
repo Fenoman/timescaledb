@@ -332,7 +332,7 @@ bit_array_iter_next_rev(BitArrayIterator *iter, uint8 num_bits)
 		return 0;
 	}
 
-	Assert(iter->current_bucket >= 0);
+	CheckCompressedData(iter->current_bucket >= 0);
 	CheckCompressedData(iter->current_bucket < (int64) iter->array->buckets.num_elements);
 
 	bits_remaining_in_current_bucket = iter->bits_used_in_current_bucket;
