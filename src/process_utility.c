@@ -6662,6 +6662,51 @@ process_drop_constraint_on_chunk(Hypertable *ht, Oid chunk_relid, void *arg)
 	}
 }
 
+/*
+ * One-entry negative memo for hypertable lookups by name within a single
+ * sql_drop batch. Dropping an ordinary table delivers one dropped-object
+ * entry per constraint and trigger of that table, and each handler probes
+ * the hypertable catalog by the same schema and table name; remembering
+ * the last negative answer collapses those scans into one. Only negative
+ * results are memoized — a drop batch can only delete hypertable rows, so
+ * a negative answer cannot become positive within one batch — and the
+ * memo is reset before each batch.
+ */
+static struct
+{
+	bool valid;
+	char schema[NAMEDATALEN];
+	char table[NAMEDATALEN];
+} drop_ht_negative_memo;
+
+static void
+drop_ht_memo_reset(void)
+{
+	drop_ht_negative_memo.valid = false;
+}
+
+static Hypertable *
+drop_ht_get_by_name_memoized(const char *schema, const char *table)
+{
+	Hypertable *ht;
+
+	if (drop_ht_negative_memo.valid &&
+		strncmp(drop_ht_negative_memo.schema, schema, NAMEDATALEN) == 0 &&
+		strncmp(drop_ht_negative_memo.table, table, NAMEDATALEN) == 0)
+	{
+		return NULL;
+	}
+
+	ht = ts_hypertable_get_by_name(schema, table);
+	if (ht == NULL)
+	{
+		strlcpy(drop_ht_negative_memo.schema, schema, NAMEDATALEN);
+		strlcpy(drop_ht_negative_memo.table, table, NAMEDATALEN);
+		drop_ht_negative_memo.valid = true;
+	}
+	return ht;
+}
+
 static void
 process_drop_table_constraint(EventTriggerDropObject *obj)
 {
@@ -6671,7 +6716,7 @@ process_drop_table_constraint(EventTriggerDropObject *obj)
 	Assert(obj->type == EVENT_TRIGGER_DROP_TABLE_CONSTRAINT);
 
 	/* do not use relids because underlying table could be gone */
-	ht = ts_hypertable_get_by_name(constraint->schema, constraint->table);
+	ht = drop_ht_get_by_name_memoized(constraint->schema, constraint->table);
 
 	if (ht != NULL)
 	{
@@ -6753,7 +6798,7 @@ process_drop_trigger(EventTriggerDropObject *obj)
 	Assert(obj->type == EVENT_TRIGGER_DROP_TRIGGER);
 
 	/* do not use relids because underlying table could be gone */
-	ht = ts_hypertable_get_by_name(trigger_event->schema, trigger_event->table);
+	ht = drop_ht_get_by_name_memoized(trigger_event->schema, trigger_event->table);
 
 	if (ht != NULL)
 	{
@@ -6880,6 +6925,8 @@ process_ddl_event_sql_drop(EventTriggerData *trigdata)
 {
 	ListCell *lc;
 	List *dropped_objects = ts_event_trigger_dropped_objects();
+
+	drop_ht_memo_reset();
 
 	foreach (lc, dropped_objects)
 	{
