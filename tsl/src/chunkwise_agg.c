@@ -14,6 +14,7 @@
 #include <optimizer/tlist.h>
 #include <utils/selfuncs.h>
 
+#include "compat/compat.h"
 #include "chunkwise_agg.h"
 
 #include "guc.h"
@@ -141,11 +142,7 @@ copy_append_path(PlannerInfo *root, AppendPath *path, List *subpaths, PathTarget
 	newPath->subpaths = subpaths;
 	newPath->path.pathtarget = copy_pathtarget(pathtarget);
 
-#if PG19_GE
-	cost_append(newPath, root);
-#else
-	cost_append(newPath);
-#endif
+	ts_cost_append(newPath, root);
 
 	return newPath;
 }

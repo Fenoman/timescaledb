@@ -583,7 +583,7 @@ finalize_agg_reference_mutator(Node *node, void *context)
 		return (Node *) combining_aggref;
 	}
 
-	return expression_tree_mutator(node, finalize_agg_reference_mutator, context);
+	return ts_expression_tree_mutator(node, finalize_agg_reference_mutator, context);
 }
 
 static Plan *insert_vector_agg(Plan *plan, void *context);
@@ -715,7 +715,7 @@ insert_vector_agg(Plan *plan, void *context)
 			pull_var_clause((Node *) agg->plan.targetlist, PVC_INCLUDE_AGGREGATES);
 		partial_agg_targetlist = add_to_flat_tlist(partial_agg_targetlist, vars_and_aggrefs);
 
-		finalize_agg_targetlist = (List *) expression_tree_mutator((Node *) agg->plan.targetlist,
+		finalize_agg_targetlist = (List *) ts_expression_tree_mutator((Node *) agg->plan.targetlist,
 																   finalize_agg_reference_mutator,
 																   partial_agg_targetlist);
 

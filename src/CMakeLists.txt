@@ -110,6 +110,7 @@ if(USE_OPENSSL)
   endif(MSVC)
 endif(USE_OPENSSL)
 
+configure_file(compat/compat_config.h.in compat_config.h)
 configure_file(config.h.in config.h)
 add_dependencies(${PROJECT_NAME} gitcheck)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
