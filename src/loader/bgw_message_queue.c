@@ -179,9 +179,16 @@ queue_add(MessageQueue *queue, BgwMessage *message)
 	}
 	LWLockRelease(queue->lock);
 
-	if (queue_get_reader(queue) != InvalidPid)
+	/*
+	 * Read the reader pid once: it can change between the InvalidPid check and
+	 * the lookup. BackendPidGetProc also returns NULL when the pid is no longer
+	 * a live backend, so check that before dereferencing its latch.
+	 */
+	pid_t reader_pid = queue_get_reader(queue);
+	PGPROC *reader_proc = reader_pid == InvalidPid ? NULL : BackendPidGetProc(reader_pid);
+	if (reader_proc != NULL)
 	{
-		SetLatch(&BackendPidGetProc(queue_get_reader(queue))->procLatch);
+		SetLatch(&reader_proc->procLatch);
 	}
 	else
 	{
