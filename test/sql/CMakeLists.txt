@@ -69,6 +69,7 @@ set(TEST_FILES
     util.sql
     uuid.sql
     vacuum.sql
+    vacuum_dbwide.sql
     vacuum_parallel.sql
     version.sql
     license.sql)
@@ -96,6 +97,7 @@ set(SOLO_TESTS
     pg_dump_unprivileged
     tablespace
     telemetry
+    vacuum_dbwide
     net)
 
 list(APPEND SOLO_TESTS loader)
