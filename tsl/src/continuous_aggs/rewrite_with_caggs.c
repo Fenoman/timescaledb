@@ -13,6 +13,7 @@
 #include <utils/date.h>
 #include <utils/timestamp.h>
 
+#include "compat/compat.h"
 #include "guc.h"
 #include "import/setrefs.h"
 #include "invalidation.h"
@@ -98,7 +99,7 @@ map_varnos_mutator(Node *node, map_varnos_context *context)
 		context->sublevels_up--;
 		return (Node *) newnode;
 	}
-	return expression_tree_mutator(node, map_varnos_mutator, context);
+	return ts_expression_tree_mutator(node, map_varnos_mutator, context);
 }
 
 static Node *
