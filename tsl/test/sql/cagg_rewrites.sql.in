@@ -33,6 +33,13 @@ LIMIT 3;
 SET timescaledb.enable_cagg_rewrites = 0;
 SET timescaledb.cagg_rewrites_debug_info = 0;
 
+EXPLAIN (buffers off, costs off, timing off, summary off)
+SELECT time_bucket(INTERVAL '2 day', day) AS bucket, count(device_id)
+FROM conditions
+GROUP BY bucket
+ORDER BY 1
+LIMIT 3;
+
 \o :TEST_RESULTS_NOT_REWRITTEN
 \ir :TEST_QUERY_NAME
 \o
