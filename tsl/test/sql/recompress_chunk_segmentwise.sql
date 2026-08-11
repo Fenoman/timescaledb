@@ -613,4 +613,30 @@ SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(c)
 FROM show_chunks('uncompressed_index') c;
 DROP TABLE uncompressed_index;
 
-
+\pset format unaligned
+-- get_compressed_chunk_index_for_recompression should reject indexes
+-- missing the last segmentby column
+CREATE TABLE recompress_index_match(time timestamptz NOT NULL, s1 int, s2 int, v int);
+SELECT create_hypertable('recompress_index_match', 'time');
+ALTER TABLE recompress_index_match SET (
+	timescaledb.compress,
+	timescaledb.compress_segmentby = 's1,s2',
+	timescaledb.compress_orderby = 'time'
+);
+INSERT INTO recompress_index_match
+SELECT '2024-01-01'::timestamptz + (i || 's')::interval, i % 2, i % 3, i
+FROM generate_series(1, 1000) i;
+SELECT count(*) FROM (SELECT compress_chunk(c) FROM show_chunks('recompress_index_match') c) q;
+SELECT c::text AS uncompressed_chunk
+FROM show_chunks('recompress_index_match') c \gset
+SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk')::text AS good_idx \gset
+SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk') IS NOT NULL AS initial_index_found;
+DROP INDEX :good_idx;
+SELECT format('%I.%I', cc.schema_name, cc.table_name) AS compressed_chunk
+FROM _timescaledb_catalog.chunk uc
+JOIN _timescaledb_catalog.chunk cc ON uc.compressed_chunk_id = cc.id
+WHERE format('%I.%I', uc.schema_name, uc.table_name)::regclass = :'uncompressed_chunk'::regclass \gset
+CREATE INDEX recompress_index_match_wrong_idx ON :compressed_chunk
+	(s1, s1, _ts_meta_v2_first_time, _ts_meta_v2_last_time);
+SELECT _timescaledb_functions.get_compressed_chunk_index_for_recompression(:'uncompressed_chunk') IS NULL AS missing_last_segmentby_rejected;
+DROP TABLE recompress_index_match;
