@@ -2,8 +2,11 @@
 -- Please see the included NOTICE for copyright information and
 -- LICENSE-APACHE for a copy of the license.
 
--- Test for cache pointer use-after-free on invalidation with active pins. We
--- reproduce this by triggering the cache invalidation from a trigger.
+-- Test cache recreation after invalidation with active pins. The cache is
+-- recreated lazily on the next pin, so an error during recreation surfaces
+-- in the statement that pins the cache, never inside the invalidation
+-- callback itself. We trigger the invalidation from a trigger while the
+-- executor holds a pin on the old cache.
 
 \c :TEST_DBNAME :ROLE_SUPERUSER
 
@@ -26,13 +29,22 @@ SELECT debug_waitpoint_enable('hypertable-cache-create');
 BEGIN;
 SAVEPOINT sp;
 
-\set ON_ERROR_STOP 0
+-- The trigger invalidates the hypertable cache mid-statement. The insert
+-- still completes on the already pinned cache; no recreation happens here.
 INSERT INTO cache_inval_test VALUES ('2024-01-02', 2);
+
+ROLLBACK TO sp;
+
+-- First statement that pins the cache after the invalidation recreates it
+-- and hits the injected error in a normal query context.
+\set ON_ERROR_STOP 0
+INSERT INTO cache_inval_test VALUES ('2024-01-03', 3);
 \set ON_ERROR_STOP 1
 
 ROLLBACK TO sp;
 
-INSERT INTO cache_inval_test VALUES ('2024-01-03', 3);
+-- The injection is one-shot: the next pin recreates the cache and works.
+INSERT INTO cache_inval_test VALUES ('2024-01-04', 4);
 COMMIT;
 
 SELECT val FROM cache_inval_test ORDER BY time;
