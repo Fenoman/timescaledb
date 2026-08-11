@@ -19,6 +19,8 @@ CREATE TABLE t2(time float, device text, value float) WITH (timescaledb.hypertab
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.hypertable,tsdb.partition_column=NULL);
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.hypertable,tsdb.partition_column='');
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.hypertable,tsdb.partition_column='foo');
+-- An expression partition key has no column name; must error, not crash the backend
+CREATE TABLE t2(time timestamptz NOT NULL, device text, value float) PARTITION BY RANGE ((time)) WITH (tsdb.hypertable);
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (tsdb.partition_column='time');
 CREATE TABLE t2(time timestamptz, device text, value float) WITH (timescaledb.partition_column='time');
 CREATE TABLE t2(time timestamptz , device text, value float) WITH (tsdb.hypertable,tsdb.partition_column='time',tsdb.chunk_interval='foo');
