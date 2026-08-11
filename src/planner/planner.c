@@ -334,6 +334,7 @@ typedef struct
 } PreprocessQueryContext;
 
 static void preprocess_fk_checks(Query *query, Cache *hcache, PreprocessQueryContext *context);
+static BaserelInfoEntry *get_or_add_baserel_from_cache(Oid chunk_reloid, Oid parent_reloid);
 
 void
 replace_now_mock_walker(PlannerInfo *root, Node *clause, Oid funcid)
@@ -484,10 +485,16 @@ preprocess_query(Node *node, PreprocessQueryContext *context)
 						 * false and other chunks have rte->inh set to true.
 						 * We want to distinguish between the two cases here by
 						 * marking the chunk when rte->inh is true.
+						 *
+						 * The chunk lookup goes through the per-query baserel
+						 * cache so that relation classification later in the
+						 * planner hooks reuses the result instead of scanning
+						 * the chunk catalog again, and repeated range table
+						 * entries for the same relation pay for one lookup.
 						 */
-						Chunk *chunk =
-							ts_chunk_get_by_relid_locked(rte->relid, NoLock, NULL, false);
-						if (chunk && rte->inh)
+						BaserelInfoEntry *entry =
+							get_or_add_baserel_from_cache(rte->relid, InvalidOid);
+						if (entry->ht != NULL && rte->inh)
 						{
 							rte_mark_for_expansion(rte);
 						}
