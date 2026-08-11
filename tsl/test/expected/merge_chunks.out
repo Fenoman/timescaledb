@@ -396,7 +396,7 @@ explain (buffers off, costs off)
 select * from mergeme where device = 1;
 --- QUERY PLAN ---
  Append
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_device__ts_meta_v2_first_time___idx on _hyper_1_1_chunk_compressed
                Index Cond: (device = 1)
    ->  Index Scan using _hyper_1_1_chunk_mergeme_device_time_idx on _hyper_1_1_chunk

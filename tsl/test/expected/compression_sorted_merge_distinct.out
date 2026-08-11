@@ -31,20 +31,20 @@ explain (buffers off, costs off) select * from t order by ts;
 --- QUERY PLAN ---
  Sort
    Sort Key: _hyper_1_1_chunk.ts
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
 
 explain (buffers off, costs off) select * from t where low_card = 1 order by ts;
 --- QUERY PLAN ---
  Sort
    Sort Key: _hyper_1_1_chunk.ts
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
                Index Cond: (low_card = 1)
 
 explain (buffers off, costs off) select * from t where high_card = 1 order by ts;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Sort
          Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
@@ -52,7 +52,7 @@ explain (buffers off, costs off) select * from t where high_card = 1 order by ts
 
 explain (buffers off, costs off) select * from t where low_card = 1 and high_card = 1 order by ts;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Sort
          Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_first_ts, _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
@@ -63,7 +63,7 @@ explain (buffers off, costs off) select * from t where low_card = 1 and high_car
 set enable_sort to off;
 explain (buffers off, costs off) select * from t where high_card = 1 order by ts;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Sort
          Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
@@ -73,7 +73,7 @@ reset enable_sort;
 -- Test that inequality conditions in WHERE also influence the estimates.
 explain (buffers off, costs off) select * from t where high_card < 10 order by ts;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Sort
          Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
@@ -83,7 +83,7 @@ explain (buffers off, costs off) select * from t where high_card < 500 order by 
 --- QUERY PLAN ---
  Sort
    Sort Key: _hyper_1_1_chunk.ts
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Seq Scan on _hyper_1_1_chunk_compressed
                Filter: (high_card < 500)
 
@@ -93,7 +93,7 @@ explain (buffers off, costs off) select * from t where high_card < 10 order by t
 --- QUERY PLAN ---
  Sort
    Sort Key: _hyper_1_1_chunk.ts
-   ->  Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed
                Index Cond: (high_card < 10)
 
@@ -106,7 +106,7 @@ select least(4194304, max_val::bigint) large_work_mem from pg_settings where nam
 set work_mem to :large_work_mem;
 explain (buffers off, costs off) select * from t where high_card < 10 order by ts;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_1_1_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_1_1_chunk
    ->  Sort
          Sort Key: _hyper_1_1_chunk_compressed._ts_meta_v2_last_ts
          ->  Index Scan using _hyper_1_1_chunk_compressed_low_card_high_card__ts_meta_v2__idx on _hyper_1_1_chunk_compressed

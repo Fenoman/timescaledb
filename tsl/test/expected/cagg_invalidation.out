@@ -1565,7 +1565,7 @@ EXPLAIN (costs off,timing off,summary off) SELECT FROM direct_compress_insert;
 --- QUERY PLAN ---
  Append
    ->  Seq Scan on _hyper_18_60_chunk
-   ->  Custom Scan (ColumnarScan) on _hyper_18_62_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_18_62_chunk
          ->  Seq Scan on _hyper_18_62_chunk_compressed
 
 RESET timescaledb.enable_direct_compress_insert;
@@ -1607,11 +1607,11 @@ EXPLAIN (costs off,timing off,summary off) SELECT FROM direct_compress_copy;
 --- QUERY PLAN ---
  Append
    ->  Seq Scan on _hyper_20_63_chunk
-   ->  Custom Scan (ColumnarScan) on _hyper_20_65_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_20_65_chunk
          ->  Seq Scan on _hyper_20_65_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_20_66_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_20_66_chunk
          ->  Seq Scan on _hyper_20_66_chunk_compressed
-   ->  Custom Scan (ColumnarScan) on _hyper_20_67_chunk
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_20_67_chunk
          ->  Seq Scan on _hyper_20_67_chunk_compressed
 
 RESET timescaledb.enable_direct_compress_copy;

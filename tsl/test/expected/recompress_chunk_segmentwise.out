@@ -321,7 +321,7 @@ EXPLAIN (BUFFERS OFF, COSTS OFF) EXECUTE p1;
  Sort
    Sort Key: mytab_prep.a, mytab_prep.c, mytab_prep."time" DESC
    ->  Append
-         ->  Custom Scan (ColumnarScan) on _hyper_5_6_chunk
+         ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_5_6_chunk
                ->  Seq Scan on _hyper_5_6_chunk_compressed
          ->  Seq Scan on _hyper_5_6_chunk
 
@@ -344,7 +344,7 @@ INFO:  Using index "_hyper_5_6_chunk_compressed_a_c__ts_meta_v2_first_time__ts__
 VACUUM ANALYZE mytab_prep;
 EXPLAIN (BUFFERS OFF, COSTS OFF) EXECUTE p1;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_5_6_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_5_6_chunk
    ->  Sort
          Sort Key: _hyper_5_6_chunk_compressed.a, _hyper_5_6_chunk_compressed.c, _hyper_5_6_chunk_compressed._ts_meta_v2_first_time DESC, _hyper_5_6_chunk_compressed._ts_meta_v2_last_time DESC
          ->  Seq Scan on _hyper_5_6_chunk_compressed
@@ -773,7 +773,7 @@ SELECT DISTINCT _timescaledb_functions.chunk_status_text(chunk) FROM show_chunks
 SET timescaledb.debug_require_batch_sorted_merge = 'force';
 EXPLAIN (COSTS OFF) SELECT a, time FROM segwise_unordered WHERE a = 2 ORDER BY a, time;
 --- QUERY PLAN ---
- Custom Scan (ColumnarScan) on _hyper_13_13_chunk
+ Custom Scan (TimescaleDBColumnarScan) on _hyper_13_13_chunk
    ->  Sort
          Sort Key: _hyper_13_13_chunk_compressed._ts_meta_v2_first_time
          ->  Index Scan using _hyper_13_13_chunk_compressed_a__ts_meta_v2_first_time__ts__idx on _hyper_13_13_chunk_compressed
