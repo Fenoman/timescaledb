@@ -77,7 +77,18 @@ ts_create_uuid_v7_from_unixtime_us(int64 unixtime_us, bool boundary, bool set_ve
 	else
 	{
 		uuid = (pg_uuid_t *) palloc(UUID_LEN);
-		pg_backend_random(&((char *) uuid)[8], UUID_LEN - 8);
+
+		/*
+		 * pg_backend_random fills bytes 8..15 with randomness and returns false
+		 * when no entropy source is available. Without this check those bytes
+		 * would be returned straight from the uninitialized palloc above, which
+		 * both leaks heap memory and yields a non-random UUID. Fail instead.
+		 */
+		if (!pg_backend_random(&((char *) uuid)[8], UUID_LEN - 8))
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("could not generate a random UUID"),
+					 errdetail("The random number generator has no source of entropy.")));
 	}
 
 	/* Fill the first 48 bits with the timestamp */
