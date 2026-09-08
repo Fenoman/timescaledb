@@ -92,6 +92,28 @@ USING (VALUES ('2026-01-02'::timestamptz, 2)) AS s(t, v)
 ON h.time = s.t
 WHEN MATCHED THEN UPDATE SET value = s.v
 WHEN NOT MATCHED THEN INSERT VALUES (s.t, s.v);
+-- A CTE DELETE also exposes the executor-only Result before the first tuple.
+CREATE TABLE early_explain_reference (value integer PRIMARY KEY);
+INSERT INTO early_explain_reference VALUES (1);
+BEGIN;
+WITH cte AS (
+    SELECT h.value FROM early_explain_insert h
+    LEFT JOIN early_explain_reference r ON r.value = h.value
+    WHERE r.value IS NULL
+)
+DELETE FROM early_explain_insert h USING cte c WHERE c.value = h.value;
+DO $$ BEGIN
+    IF (SELECT array_agg(value ORDER BY value) FROM early_explain_insert) IS DISTINCT FROM ARRAY[1] THEN
+        RAISE EXCEPTION 'early EXPLAIN DELETE produced incorrect rows';
+    END IF;
+END $$;
+ROLLBACK;
+DO $$ BEGIN
+    IF (SELECT count(*) FROM early_explain_insert) <> 2 THEN
+        RAISE EXCEPTION 'early EXPLAIN DELETE rollback did not restore rows';
+    END IF;
+END $$;
+UPDATE early_explain_insert SET value = 3 WHERE value = 2;
 DO $$ BEGIN PERFORM test.disable_explain_in_executor_start(); END $$;
 -- End early ExecutorStart EXPLAIN test.
 
