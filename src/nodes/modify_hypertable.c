@@ -171,6 +171,13 @@ modify_hypertable_begin(CustomScanState *node, EState *estate, int eflags)
 	modify_hypertable_state->deferred_modify_table_subplan = outerPlan(modify_table_plan);
 
 	Plan *dummy_child = (Plan *) makeNode(Result);
+	/*
+	 * This executor-only node is not part of the planned statement. Its zeroed
+	 * plan_node_id would alias the statement root when extensions such as
+	 * pgpro_stats map PlanStates to normalized Plans for an early EXPLAIN.
+	 * Mark it as unnumbered so they retain a Result plan for this ResultState.
+	 */
+	dummy_child->plan_node_id = -1;
 	castNode(Result, dummy_child)->resconstantqual =
 		(Node *) list_make1(makeBoolConst(false, false));
 

@@ -60,8 +60,28 @@ test_explain_in_executor_start(QueryDesc *query_desc, int eflags)
 	}
 
 	if (explain_in_executor_start_enabled &&
-		(query_desc->operation == CMD_INSERT || query_desc->operation == CMD_MERGE))
+		(query_desc->operation == CMD_INSERT || query_desc->operation == CMD_UPDATE ||
+		 query_desc->operation == CMD_DELETE || query_desc->operation == CMD_MERGE))
 	{
+		if (ts_is_modify_hypertable_plan(query_desc->planstate->plan))
+		{
+			ModifyHypertableState *state = (ModifyHypertableState *) query_desc->planstate;
+			if (state->deferred_modify_table_subplan != NULL)
+			{
+				ModifyTableState *mtstate =
+					linitial_node(ModifyTableState, state->cscan_state.custom_ps);
+				Plan *dummy = outerPlanState(mtstate)->plan;
+
+				/*
+				 * Plan-ID-based EXPLAIN consumers must not mistake this executor-only
+				 * Result for a node of the planned statement.
+				 */
+				if (dummy->plan_node_id >= 0)
+					ereport(ERROR,
+							(errmsg("deferred Result has plan ID %d", dummy->plan_node_id)));
+			}
+		}
+
 		ExplainState *es = NewExplainState();
 		ExplainPrintPlan(es, query_desc);
 	}
