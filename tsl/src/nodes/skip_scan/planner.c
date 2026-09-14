@@ -154,6 +154,30 @@ skip_scan_plan_create(PlannerInfo *root, RelOptInfo *relopt, CustomPath *best_pa
 	IndexPath *index_path = path->index_path;
 
 	Plan *child_plan = linitial(custom_plans);
+	if (IsA(child_plan, Result) && child_plan->qual == NIL && outerPlan(child_plan) != NULL)
+	{
+		/*
+		 * create_scan_plan() gates both the child and SkipScan: their paths have
+		 * the same parent and parameterization, and the child's restriction
+		 * clauses are a subset of the parent's. PostgreSQL adds our gating Result
+		 * after PlanCustomPath returns, so the child's gate is redundant. Remove
+		 * it only when the outer gate evaluates every child gating clause;
+		 * otherwise keep it and fail below rather than drop a qualification.
+		 * Keep the requested projection, but expose the scan to our executor.
+		 */
+		Result *gate = castNode(Result, child_plan);
+		List *gate_quals = (List *) gate->resconstantqual;
+		Assert(innerPlan(child_plan) == NULL);
+
+		if (gate_quals != NIL &&
+			list_difference(gate_quals, extract_actual_clauses(clauses, true)) == NIL)
+		{
+			child_plan = change_plan_targetlist(outerPlan(&gate->plan),
+												gate->plan.targetlist,
+												gate->plan.parallel_safe);
+			custom_plans = list_make1(child_plan);
+		}
+	}
 	Plan *plan = setup_index_plan(skip_plan, child_plan);
 
 	skip_plan->scan.plan.targetlist = tlist;
