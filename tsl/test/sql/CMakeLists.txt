@@ -83,6 +83,7 @@ set(TEST_FILES
     size_utils_tsl.sql
     skip_scan.sql
     skip_scan_dagg.sql
+    skip_scan_gating.sql
     split_chunk.sql
     transparent_decompression_join_index.sql
     uncompressed_size.sql
