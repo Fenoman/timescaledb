@@ -1,0 +1,286 @@
+-- This file and its contents are licensed under the Timescale License.
+-- Please see the included NOTICE for copyright information and
+-- LICENSE-TIMESCALE for a copy of the license.
+\c :TEST_DBNAME :ROLE_SUPERUSER
+\pset format unaligned
+SET timescaledb.enable_skipscan = on;
+SET plan_cache_mode = force_generic_plan;
+SET enable_seqscan = off;
+-- The distinct column is not the first heap column. Removing a gating Result
+-- must preserve its projection as well as its one-time qualification.
+CREATE TEMP TABLE skip_scan_gating (padding text, f_division integer, f_subdivision smallint);
+CREATE INDEX ON skip_scan_gating (f_division, f_subdivision);
+INSERT INTO skip_scan_gating
+SELECT CASE WHEN g % 4 = 3 THEN '' ELSE 'kept' END,
+       CASE WHEN g % 5 = 0 THEN NULL ELSE 13 + g % 4 END, 0
+FROM generate_series(1, 100000) g;
+ANALYZE skip_scan_gating;
+CREATE FUNCTION pg_temp.check_skip_scan_gating(want integer[], want_filtered integer[], require_skip boolean)
+RETURNS integer LANGUAGE plpgsql AS $$
+DECLARE
+    use_index_only boolean;
+    use_skip boolean;
+    period integer;
+    division integer;
+    gate boolean;
+    actual integer[];
+    expected integer[];
+    query_plan jsonb;
+    repeat integer;
+    checks integer := 0;
+BEGIN
+    FOREACH use_index_only IN ARRAY ARRAY[true, false] LOOP
+        PERFORM set_config('enable_indexonlyscan', use_index_only::text, true);
+        FOREACH use_skip IN ARRAY ARRAY[true, false] LOOP
+            PERFORM set_config('timescaledb.enable_skipscan', use_skip::text, true);
+            -- Separate prepared plans for each GUC combination, reused below.
+            EXECUTE $query$
+                PREPARE gating_original(integer, integer) AS
+                SELECT array_agg(r.f_division ORDER BY r.f_division)
+                FROM (
+                    SELECT DISTINCT f_division FROM skip_scan_gating WHERE $1 IS NULL
+                    UNION
+                    SELECT $2 AS f_division WHERE $1 IS NOT NULL
+                ) r
+            $query$;
+            EXECUTE $query$
+                PREPARE gating_boolean(boolean) AS
+                SELECT array_agg(r.f_division ORDER BY r.f_division)
+                FROM (
+                    SELECT DISTINCT f_division FROM skip_scan_gating
+                    WHERE $1 AND length(padding) > 0
+                ) r
+            $query$;
+
+            EXECUTE $query$
+                PREPARE gating_rescan AS
+                SELECT input.gate, ARRAY(
+                    SELECT DISTINCT f_division FROM skip_scan_gating
+                    WHERE input.gate ORDER BY f_division
+                )
+                FROM (VALUES (true), (false), (NULL::boolean),
+                             (true), (NULL::boolean), (false)) input(gate)
+            $query$;
+
+            -- EXPLAIN without execution used to fail while building the plan.
+            EXECUTE 'EXPLAIN (FORMAT JSON, COSTS OFF) EXECUTE gating_original(NULL, 13)'
+                INTO query_plan;
+            IF require_skip AND use_skip THEN
+                IF NOT jsonb_path_exists(query_plan, '$.** ? (@."Custom Plan Provider" == "SkipScan")') THEN
+                    RAISE EXCEPTION 'gating regression did not select SkipScan';
+                END IF;
+                IF use_index_only AND NOT jsonb_path_exists(query_plan, '$.** ? (@."Node Type" == "Index Only Scan")') THEN
+                    RAISE EXCEPTION 'gating regression did not select IndexOnlyScan';
+                END IF;
+                IF NOT use_index_only AND NOT jsonb_path_exists(query_plan, '$.** ? (@."Node Type" == "Index Scan")') THEN
+                    RAISE EXCEPTION 'gating regression did not select IndexScan';
+                END IF;
+                IF NOT jsonb_path_exists(query_plan, '$.**."One-Time Filter"') THEN
+                    RAISE EXCEPTION 'gating regression lost the one-time filter';
+                END IF;
+            END IF;
+
+            EXECUTE 'EXPLAIN (FORMAT JSON, COSTS OFF) EXECUTE gating_boolean(true)'
+                INTO query_plan;
+            IF require_skip AND use_skip THEN
+                IF NOT jsonb_path_exists(query_plan, '$.** ? (@."Custom Plan Provider" == "SkipScan")') THEN
+                    RAISE EXCEPTION 'boolean gating regression did not select SkipScan';
+                END IF;
+                IF NOT jsonb_path_exists(query_plan, '$.**."One-Time Filter"') THEN
+                    RAISE EXCEPTION 'boolean gating regression lost the one-time filter';
+                END IF;
+            END IF;
+
+            FOR repeat IN 1..3 LOOP
+                FOREACH period IN ARRAY ARRAY[NULL::integer, 202601] LOOP
+                    FOREACH division IN ARRAY ARRAY[NULL::integer, 13, -7] LOOP
+                        expected := CASE WHEN period IS NULL THEN want ELSE ARRAY[division] END;
+                        EXECUTE format('EXECUTE gating_original(%L, %L)', period, division) INTO actual;
+                        IF actual IS DISTINCT FROM expected THEN
+                            RAISE EXCEPTION 'gated UNION: got %, expected % (period %, division %, skip %, indexonly %)',
+                                actual, expected, period, division, use_skip, use_index_only;
+                        END IF;
+                        checks := checks + 1;
+                    END LOOP;
+                END LOOP;
+                FOREACH gate IN ARRAY ARRAY[true, false, NULL::boolean] LOOP
+                    expected := CASE WHEN gate THEN want_filtered ELSE NULL::integer[] END;
+                    EXECUTE format('EXECUTE gating_boolean(%L)', gate) INTO actual;
+                    IF actual IS DISTINCT FROM expected THEN
+                        RAISE EXCEPTION 'boolean gate: got %, expected % (gate %, skip %, indexonly %)',
+                            actual, expected, gate, use_skip, use_index_only;
+                    END IF;
+                    checks := checks + 1;
+                END LOOP;
+            END LOOP;
+
+            -- Correlation rescans the same Result/SkipScan state for six outer
+            -- rows. ARRAY returns an empty array, not SQL NULL, for no rows.
+            FOR gate, actual IN EXECUTE 'EXECUTE gating_rescan' LOOP
+                expected := CASE WHEN gate THEN coalesce(want, ARRAY[]::integer[])
+                                 ELSE ARRAY[]::integer[] END;
+                IF actual IS DISTINCT FROM expected THEN
+                    RAISE EXCEPTION 'gated rescan: got %, expected % (gate %, skip %, indexonly %)',
+                        actual, expected, gate, use_skip, use_index_only;
+                END IF;
+                checks := checks + 1;
+            END LOOP;
+            EXECUTE 'EXPLAIN (ANALYZE, FORMAT JSON, COSTS OFF, TIMING OFF, SUMMARY OFF) EXECUTE gating_rescan'
+                INTO query_plan;
+            IF require_skip AND use_skip AND NOT jsonb_path_exists(query_plan,
+                '$.** ? (@."Custom Plan Provider" == "SkipScan" && @."Actual Loops" == 2)') THEN
+                RAISE EXCEPTION 'gated rescan must execute SkipScan exactly twice';
+            END IF;
+
+            -- False and NULL gates must not run their child scan, including
+            -- when the prepared plan has previously run with a true gate.
+            FOREACH gate IN ARRAY ARRAY[false, NULL::boolean] LOOP
+                EXECUTE format('EXPLAIN (ANALYZE, FORMAT JSON, COSTS OFF, TIMING OFF, SUMMARY OFF) EXECUTE gating_boolean(%L)', gate)
+                    INTO query_plan;
+                IF jsonb_path_exists(query_plan, '$.** ? ((@."Node Type" == "Index Scan" || @."Node Type" == "Index Only Scan") && @."Actual Loops" > 0)') THEN
+                    RAISE EXCEPTION 'false or NULL gate executed an index scan';
+                END IF;
+            END LOOP;
+            EXECUTE 'DEALLOCATE gating_original';
+            EXECUTE 'DEALLOCATE gating_boolean';
+            EXECUTE 'DEALLOCATE gating_rescan';
+        END LOOP;
+    END LOOP;
+    RETURN checks;
+END;
+$$;
+-- Hand-derived expected values also serve as the SkipScan-off reference.
+SELECT pg_temp.check_skip_scan_gating(ARRAY[13,14,15,16,NULL], ARRAY[13,14,15,NULL], true);
+check_skip_scan_gating
+132
+-- A stable one-time filter without parameters gates every plan of a plain
+-- query, not only generic plans of prepared statements.
+SELECT array_agg(r.f_division ORDER BY r.f_division)
+FROM (SELECT DISTINCT f_division FROM skip_scan_gating WHERE now() IS NOT NULL) r;
+array_agg
+{13,14,15,16,NULL}
+SELECT array_agg(r.f_division ORDER BY r.f_division)
+FROM (SELECT DISTINCT f_division FROM skip_scan_gating WHERE now() IS NULL) r;
+array_agg
+
+DO $$
+DECLARE
+    query_plan jsonb;
+BEGIN
+    EXECUTE 'EXPLAIN (FORMAT JSON, COSTS OFF)
+             SELECT DISTINCT f_division FROM skip_scan_gating WHERE now() IS NOT NULL'
+        INTO query_plan;
+    IF NOT jsonb_path_exists(query_plan, '$.** ? (@."Custom Plan Provider" == "SkipScan")') OR
+       NOT jsonb_path_exists(query_plan, '$.**."One-Time Filter"') THEN
+        RAISE EXCEPTION 'parameterless gate lost SkipScan or its one-time filter';
+    END IF;
+END;
+$$;
+-- A fresh PL/pgSQL query under auto may try a generic plan after five custom
+-- plans even if that generic plan is ultimately rejected on cost grounds.
+SET plan_cache_mode = auto;
+CREATE FUNCTION pg_temp.skip_scan_gating_auto(period integer, division integer)
+RETURNS integer[] LANGUAGE plpgsql AS $$
+DECLARE
+    answer integer[];
+BEGIN
+    SELECT array_agg(r.f_division ORDER BY r.f_division) INTO answer
+    FROM (
+        SELECT DISTINCT f_division FROM skip_scan_gating WHERE period IS NULL
+        UNION
+        SELECT division WHERE period IS NOT NULL
+    ) r;
+    RETURN answer;
+END;
+$$;
+DO $$
+BEGIN
+    FOR i IN 1..12 LOOP
+        IF pg_temp.skip_scan_gating_auto(202601, 13) IS DISTINCT FROM ARRAY[13] THEN
+            RAISE EXCEPTION 'incorrect repeated PL/pgSQL result';
+        END IF;
+    END LOOP;
+    IF pg_temp.skip_scan_gating_auto(NULL, 13) IS DISTINCT FROM ARRAY[13,14,15,16,NULL] THEN
+        RAISE EXCEPTION 'incorrect PL/pgSQL result after parameter change';
+    END IF;
+END;
+$$;
+SET plan_cache_mode = force_generic_plan;
+TRUNCATE skip_scan_gating;
+ANALYZE skip_scan_gating;
+SELECT pg_temp.check_skip_scan_gating(NULL, NULL, false);
+check_skip_scan_gating
+132
+INSERT INTO skip_scan_gating SELECT 'kept', NULL, 0 FROM generate_series(1, 1000);
+ANALYZE skip_scan_gating;
+SELECT pg_temp.check_skip_scan_gating(ARRAY[NULL::integer], ARRAY[NULL::integer], true);
+check_skip_scan_gating
+132
+TRUNCATE skip_scan_gating;
+INSERT INTO skip_scan_gating
+SELECT 'kept', CASE WHEN g % 2 = 0 THEN -7 ELSE 13 END, 0 FROM generate_series(1, 1000) g;
+ANALYZE skip_scan_gating;
+SELECT pg_temp.check_skip_scan_gating(ARRAY[-7,13], ARRAY[-7,13], true);
+check_skip_scan_gating
+132
+-- Multikey SkipScan needs NOT NULL keys, declared or implied by quals, and its
+-- child is gated the same way.
+CREATE TEMP TABLE skip_scan_gating_multi (a integer NOT NULL, b smallint NOT NULL, na integer, nb smallint);
+CREATE INDEX ON skip_scan_gating_multi (a, b);
+CREATE INDEX ON skip_scan_gating_multi (na, nb);
+INSERT INTO skip_scan_gating_multi
+SELECT 13 + g % 4, (g % 3)::smallint, CASE WHEN g % 5 = 0 THEN NULL ELSE 13 + g % 4 END, (g % 3)::smallint
+FROM generate_series(1, 100000) g;
+ANALYZE skip_scan_gating_multi;
+CREATE FUNCTION pg_temp.check_skip_scan_gating_multi()
+RETURNS integer LANGUAGE plpgsql AS $$
+DECLARE
+    want text[] := ARRAY['(13,0)', '(13,1)', '(13,2)', '(14,0)', '(14,1)', '(14,2)',
+                         '(15,0)', '(15,1)', '(15,2)', '(16,0)', '(16,1)', '(16,2)'];
+    query text;
+    parameter_gate boolean;
+    gate boolean;
+    r record;
+    actual text[];
+    expected text[];
+    query_plan jsonb;
+    checks integer := 0;
+BEGIN
+    FOREACH query IN ARRAY ARRAY[
+        'SELECT DISTINCT a, b FROM skip_scan_gating_multi WHERE $1',
+        'SELECT DISTINCT na, nb FROM skip_scan_gating_multi WHERE $1 AND na IS NOT NULL AND nb IS NOT NULL',
+        'SELECT DISTINCT a, b FROM skip_scan_gating_multi WHERE now() IS NOT NULL AND $1 IS NOT DISTINCT FROM $1'] LOOP
+        parameter_gate := query NOT LIKE '%now()%';
+        EXECUTE format('PREPARE gating_multi(boolean) AS %s', query);
+        EXECUTE 'EXPLAIN (FORMAT JSON, COSTS OFF) EXECUTE gating_multi(true)' INTO query_plan;
+        IF NOT jsonb_path_exists(query_plan, '$.** ? (@."Custom Plan Provider" == "SkipScan")') OR
+           NOT jsonb_path_exists(query_plan, '$.**."One-Time Filter"') OR
+           NOT jsonb_path_exists(query_plan, '$.** ? (@."Index Cond" like_regex "a > NULL.*b > NULL")') THEN
+            RAISE EXCEPTION 'multikey gating regression lost two-key SkipScan or its gate: %', query;
+        END IF;
+        FOREACH gate IN ARRAY ARRAY[true, false, NULL::boolean, true] LOOP
+            actual := '{}';
+            FOR r IN EXECUTE format('EXECUTE gating_multi(%L)', gate) LOOP
+                actual := actual || r::text;
+            END LOOP;
+            actual := (SELECT array_agg(x ORDER BY x) FROM unnest(actual) x);
+            expected := CASE WHEN gate OR NOT parameter_gate THEN want END;
+            IF actual IS DISTINCT FROM expected THEN
+                RAISE EXCEPTION 'multikey gate: got %, expected % (gate %, query %)',
+                    actual, expected, gate, query;
+            END IF;
+            checks := checks + 1;
+        END LOOP;
+        EXECUTE 'DEALLOCATE gating_multi';
+    END LOOP;
+    RETURN checks;
+END;
+$$;
+SELECT pg_temp.check_skip_scan_gating_multi();
+check_skip_scan_gating_multi
+12
+DROP TABLE skip_scan_gating_multi;
+DROP TABLE skip_scan_gating;
+RESET enable_seqscan;
+RESET plan_cache_mode;
+RESET timescaledb.enable_skipscan;
