@@ -284,7 +284,7 @@ ts_tsl_loaded(PG_FUNCTION_ARGS)
 }
 
 static void
-preprocess_query_tsl_default_fn_community(Query *parse, int *cursor_opts)
+preprocess_query_tsl_default_fn_community(Query *parse, int *cursor_opts, bool has_coalesce)
 {
 	/* No op in community licensed code */
 }

@@ -17,9 +17,11 @@
 #include <pg_config.h>
 #include <postmaster/bgworker.h>
 #include <storage/ipc.h>
+#include <storage/sinval.h>
 #include <tcop/utility.h>
 #include <utils/guc.h>
 #include <utils/inval.h>
+#include <utils/syscache.h>
 
 #include "compat/compat.h"
 #include "config.h"
@@ -124,6 +126,9 @@ typedef struct TsExtension
 
 	/* Shared object library version loaded; empty if none. */
 	char soversion[MAX_VERSION_LEN];
+
+	/* SQL version matches soversion until pg_extension is invalidated. */
+	bool version_validated;
 } TsExtension;
 
 TsExtension extensions[] = {
@@ -136,6 +141,7 @@ TsExtension extensions[] = {
 		.guc_disable_load_name = MAKE_EXTOPTION("disable_load"),
 		.guc_disable_load = false,
 		.soversion = "",
+		.version_validated = false,
 	},
 	{
 		.name = "timescaledb_osm",
@@ -144,6 +150,7 @@ TsExtension extensions[] = {
 		.guc_disable_load_name = "timescaledb_osm.disable_load",
 		.guc_disable_load = false,
 		.soversion = "",
+		.version_validated = false,
 	},
 	{
 		.name = "timescaledb_lake",
@@ -152,6 +159,7 @@ TsExtension extensions[] = {
 		.guc_disable_load_name = "timescaledb_lake.disable_load",
 		.guc_disable_load = false,
 		.soversion = "",
+		.version_validated = false,
 	},
 };
 
@@ -669,6 +677,16 @@ extension_mark_loader_present()
 	*presentptr = &loader_present;
 }
 
+static void
+extension_version_invalidate(Datum arg, int cacheid, uint32 hashvalue)
+{
+	/* Also covers catalog rollback and a full syscache reset. */
+	for (size_t i = 0; i < lengthof(extensions); i++)
+	{
+		extensions[i].version_validated = false;
+	}
+}
+
 void
 _PG_init(void)
 {
@@ -729,14 +747,25 @@ _PG_init(void)
 
 	prev_shmem_request_hook = shmem_request_hook;
 	shmem_request_hook = timescaledb_shmem_request_hook;
+	CacheRegisterSyscacheCallback(EXTENSIONOID, extension_version_invalidate, (Datum) 0);
 }
 
 inline static void
 do_load(TsExtension *const ext)
 {
-	char *version = extension_version(ext->name);
+	char *version;
 	char soname[MAX_SO_NAME_LEN];
 	post_parse_analyze_hook_type old_hook;
+
+	/* The catalog lock used by extension_version() used to do this on every
+	 * parse. Keep receiving cross-backend changes even for SELECTs without
+	 * relations inside an already open transaction. */
+	AcceptInvalidationMessages();
+	if (extension_is_loaded(ext) && ext->version_validated)
+	{
+		return;
+	}
+	version = extension_version(ext->name);
 
 	/* If the right version of the library is already loaded, we will just
 	 * skip the actual loading. If the wrong version of the library is loaded,
@@ -746,6 +775,8 @@ do_load(TsExtension *const ext)
 	{
 		if (strcmp(ext->soversion, version) == 0)
 		{
+			ext->version_validated = true;
+			pfree(version);
 			return;
 		}
 		ereport(FATAL,
@@ -807,6 +838,9 @@ do_load(TsExtension *const ext)
 	 * the loader would silently drop it when restoring old_hook below. */
 	Assert(post_parse_analyze_hook == NULL);
 	post_parse_analyze_hook = old_hook;
+	/* Leave the first validation to the next call: module initialization can
+	 * itself receive invalidations, which must not be overwritten here. */
+	pfree(version);
 }
 
 inline static void
