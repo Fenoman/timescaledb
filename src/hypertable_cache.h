@@ -53,6 +53,9 @@ extern TSDLLEXPORT Hypertable *ts_hypertable_cache_get_entry_by_id(Cache *cache,
 
 extern void ts_hypertable_cache_invalidate_callback(void);
 
+extern int32 ts_hypertable_cache_get_chunk_hypertable_id(Cache *cache, Oid relid);
+extern Oid ts_hypertable_cache_get_uncompressed_relid(Cache *cache, Oid relid);
+
 extern TSDLLEXPORT Cache *ts_hypertable_cache_pin(void);
 
 extern void _hypertable_cache_init(void);

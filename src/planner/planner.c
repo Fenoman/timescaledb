@@ -209,10 +209,12 @@ ts_rte_mark_compressed_relation(RangeTblEntry *rte)
 	rte->ctename = (char *) TS_CTE_COMPRESSED_RELATION;
 }
 
-static bool
+bool
 ts_rte_is_compressed_relation(const RangeTblEntry *rte)
 {
-	return rte->ctename == TS_CTE_COMPRESSED_RELATION;
+	/* Copies of the RTE need not share the marker's original address. */
+	return rte->ctename == TS_CTE_COMPRESSED_RELATION ||
+		   (rte->ctename != NULL && strcmp(rte->ctename, TS_CTE_COMPRESSED_RELATION) == 0);
 }
 
 bool
@@ -331,6 +333,7 @@ typedef struct
 	Query *rootquery;
 	Query *current_query;
 	PlannerInfo *root;
+	bool has_coalesce;
 } PreprocessQueryContext;
 
 static void preprocess_fk_checks(Query *query, Cache *hcache, PreprocessQueryContext *context);
@@ -399,6 +402,13 @@ preprocess_query(Node *node, PreprocessQueryContext *context)
 	if (node == NULL)
 	{
 		return false;
+	}
+
+	/* Watermark constification requires a surrounding COALESCE. Collect this
+	 * during the existing recursive walk, including CTEs and subqueries. */
+	if (IsA(node, CoalesceExpr))
+	{
+		context->has_coalesce = true;
 	}
 
 	if (IsA(node, FromExpr) && ts_guc_enable_optimizations)
@@ -717,7 +727,9 @@ timescaledb_planner(Query *parse, const char *query_string, int cursor_opts,
 
 			if (ts_guc_enable_optimizations)
 			{
-				ts_cm_functions->preprocess_query_tsl(context.rootquery, &cursor_opts);
+				ts_cm_functions->preprocess_query_tsl(context.rootquery,
+														 &cursor_opts,
+														 context.has_coalesce);
 			}
 		}
 
@@ -871,7 +883,8 @@ get_or_add_baserel_from_cache(Oid chunk_reloid, Oid parent_reloid)
 		/* Hypertable reloid not specified by the caller, look it up by
 		 * an expensive metadata scan.
 		 */
-		int32 hypertable_id = ts_chunk_get_hypertable_id_by_reloid(chunk_reloid);
+		int32 hypertable_id =
+			ts_hypertable_cache_get_chunk_hypertable_id(planner_hcache_get(), chunk_reloid);
 
 		if (hypertable_id != INVALID_HYPERTABLE_ID)
 		{
@@ -1890,7 +1903,8 @@ replace_modify_hypertable_paths(PlannerInfo *root, List *pathlist, RelOptInfo *i
 				 * In all other cases of direct modification of chunks we dont interfere
 				 * and do not add a ModifyHypertable node.
 				 */
-				Oid uncompressed_relid = ts_relation_get_uncompressed_relid(rte->relid);
+				Oid uncompressed_relid =
+					ts_hypertable_cache_get_uncompressed_relid(planner_hcache_get(), rte->relid);
 				if (OidIsValid(uncompressed_relid))
 				{
 					Chunk *uncompressed = ts_chunk_get_by_relid(uncompressed_relid, true);
@@ -1906,7 +1920,8 @@ replace_modify_hypertable_paths(PlannerInfo *root, List *pathlist, RelOptInfo *i
 					continue;
 				}
 
-				int32 hypertable_id = ts_chunk_get_hypertable_id_by_reloid(rte->relid);
+				int32 hypertable_id =
+					ts_hypertable_cache_get_chunk_hypertable_id(planner_hcache_get(), rte->relid);
 				if (hypertable_id == INVALID_HYPERTABLE_ID)
 				{
 					/* Not a hypertable or chunk, continue */

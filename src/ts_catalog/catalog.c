@@ -788,7 +788,6 @@ ts_catalog_invalidate_cache(Oid catalog_relid, CmdType operation)
 
 	switch (table)
 	{
-		case CHUNK:
 		case DIMENSION_SLICE:
 			if (operation == CMD_UPDATE || operation == CMD_DELETE)
 			{
@@ -797,6 +796,9 @@ ts_catalog_invalidate_cache(Oid catalog_relid, CmdType operation)
 			}
 			break;
 		case HYPERTABLE:
+		/* Negative planner lookups must also see newly attached chunks. */
+		case CHUNK:
+		case COMPRESSION_SETTINGS:
 		case DIMENSION:
 		case CONTINUOUS_AGG:
 		case CHUNK_COLUMN_STATS:
