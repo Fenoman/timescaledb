@@ -177,12 +177,12 @@ tsl_set_rel_pathlist_dml(PlannerInfo *root, RelOptInfo *rel, Index rti, RangeTbl
  * Run preprocess query optimizations
  */
 void
-tsl_preprocess_query(Query *parse, int *cursor_opts)
+tsl_preprocess_query(Query *parse, int *cursor_opts, bool has_coalesce)
 {
 	Assert(parse != NULL);
 
 	/* Check if constification of watermark values is enabled */
-	if (ts_guc_enable_cagg_watermark_constify)
+	if (has_coalesce && ts_guc_enable_cagg_watermark_constify)
 	{
 		constify_cagg_watermark(parse);
 	}
@@ -205,14 +205,32 @@ tsl_postprocess_plan(PlannedStmt *stmt)
 		return;
 	}
 
-	if (ts_guc_enable_columnarindexscan)
+	/* Both passes can only transform plans containing a ColumnarScan. Its
+	 * compressed RTE is present in the final flattened range table, including
+	 * relations inside subplans, CTEs and inlined SQL functions. */
+	bool has_compressed_relation = false;
+	if (ts_guc_enable_columnarindexscan || ts_guc_enable_vectorized_aggregation)
+	{
+		ListCell *lc;
+		foreach (lc, stmt->rtable)
+		{
+			RangeTblEntry *rte = lfirst_node(RangeTblEntry, lc);
+			if (rte->rtekind == RTE_RELATION && ts_rte_is_compressed_relation(rte))
+			{
+				has_compressed_relation = true;
+				break;
+			}
+		}
+	}
+
+	if (has_compressed_relation && ts_guc_enable_columnarindexscan)
 	{
 		stmt->planTree = try_insert_columnar_index_scan_node(stmt->planTree, stmt->rtable);
 		stmt->subplans =
 			(List *) try_insert_columnar_index_scan_node((Plan *) stmt->subplans, stmt->rtable);
 	}
 
-	if (ts_guc_enable_vectorized_aggregation)
+	if (has_compressed_relation && ts_guc_enable_vectorized_aggregation)
 	{
 		stmt->planTree = try_insert_vector_agg_node(stmt->planTree);
 		stmt->subplans = (List *) try_insert_vector_agg_node((Plan *) stmt->subplans);

@@ -1,0 +1,88 @@
+# This file and its contents are licensed under the Apache License 2.0.
+# Please see the included NOTICE for copyright information and
+# LICENSE-APACHE for a copy of the license.
+
+use strict;
+use warnings;
+use TimescaleNode;
+use Test::More;
+
+my $node = TimescaleNode->create('loader_cache');
+my $version = $node->safe_psql('postgres',
+	"SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'");
+
+# Count real catalog index scans, not wall-clock time. The optional assertion
+# in extension_current_state() is independent of the version check under test.
+my $scan_limit = 5 + 102 * @LOADER_ASSERT_SCANS@;
+my ($rc, $out, $err) = $node->psql('postgres', qq[
+	SELECT 1;
+	DO \$\$
+	DECLARE
+		before_scans bigint;
+		scans bigint;
+	BEGIN
+		before_scans := pg_stat_get_xact_numscans('pg_extension_name_index'::regclass);
+		FOR i IN 1..100 LOOP
+			EXECUTE 'SELECT 1';
+		END LOOP;
+		scans := pg_stat_get_xact_numscans('pg_extension_name_index'::regclass) - before_scans;
+		IF scans > $scan_limit THEN
+			RAISE EXCEPTION 'repeated extension version lookups: % scans', scans;
+		END IF;
+	END
+	\$\$;
+]);
+is($rc, 0, 'warm parses do not repeatedly scan the extension version')
+  or diag($err);
+
+# Keep the observer in one transaction. A cached SELECT without relation access
+# must still receive invalidations sent by another backend before using the SO.
+my $observer = $node->background_psql('postgres');
+$observer->query_safe('BEGIN; SELECT 1; SELECT 1');
+$node->safe_psql('postgres', q[
+	SET timescaledb.disable_load = on;
+	UPDATE pg_extension SET extversion = 'loader-cache-mismatch'
+	WHERE extname = 'timescaledb';
+]);
+$observer->query_until('', "SELECT 1;\n\\q\n");
+$observer->{run}->finish;
+like($observer->{stderr}, qr/already loaded with a different version/,
+	'cross-backend version change terminates the stale backend');
+
+# Restore the test catalog without trying to load the deliberately bogus SO.
+$node->safe_psql('postgres', qq[
+	SET timescaledb.disable_load = on;
+	UPDATE pg_extension SET extversion = '$version'
+	WHERE extname = 'timescaledb';
+]);
+is($node->safe_psql('postgres', 'SELECT 42'), '42',
+	'a new backend loads the restored version');
+
+# Exercise local catalog invalidation and subtransaction rollback.
+is($node->safe_psql('postgres', q[
+	SELECT 1;
+	BEGIN;
+	SAVEPOINT s;
+	UPDATE pg_extension SET extversion = extversion WHERE extname = 'timescaledb';
+	SELECT 2;
+	ROLLBACK TO s;
+	SELECT 3;
+	ROLLBACK;
+	SELECT 4;
+]), "1\n2\n3\n4", 'local and abort invalidations keep the version usable');
+
+my $session = $node->background_psql('postgres');
+$session->query_safe('SELECT 1; SELECT 1');
+is($session->query_safe(q[
+	BEGIN;
+	UPDATE pg_extension SET extversion = extversion WHERE extname = 'timescaledb';
+	SELECT 1;
+	ROLLBACK;
+	SELECT 2;
+]), "1\n2", 'transaction rollback keeps the loader usable');
+$session->query_safe('DROP EXTENSION timescaledb; SELECT 1; CREATE EXTENSION timescaledb');
+is($session->query_safe('SELECT 42'), '42',
+	'same-backend drop and recreate preserves loader state');
+$session->quit;
+
+done_testing();
