@@ -11,12 +11,14 @@
 #include <utils/memutils.h>
 
 #include "cache.h"
+#include "chunk.h"
 #include "dimension.h"
 #include "errors.h"
 #include "hypertable.h"
 #include "hypertable_cache.h"
 #include "scanner.h"
 #include "ts_catalog/catalog.h"
+#include "ts_catalog/compression_settings.h"
 #include "ts_catalog/tablespace.h"
 
 static void *hypertable_cache_create_entry(Cache *cache, CacheQuery *query);
@@ -42,6 +44,9 @@ typedef struct
 {
 	Oid relid;
 	Hypertable *hypertable;
+	/* Filled independently, only when a planner lookup proves absence. */
+	bool not_chunk;
+	bool not_compressed_relation;
 } HypertableCacheEntry;
 
 static bool
@@ -103,6 +108,9 @@ hypertable_cache_create_entry(Cache *cache, CacheQuery *query)
 	HypertableCacheQuery *hq = (HypertableCacheQuery *) query;
 	HypertableCacheEntry *cache_entry = query->result;
 	int number_found;
+
+	cache_entry->not_chunk = false;
+	cache_entry->not_compressed_relation = false;
 
 	if (NULL == hq->schema)
 	{
@@ -253,6 +261,53 @@ ts_hypertable_cache_get_entry_with_table(Cache *cache, const Oid relid, const ch
 	HypertableCacheEntry *entry = ts_cache_fetch(cache, &query.q);
 	Assert((flags & CACHE_FLAG_MISSING_OK) ? true : (entry != NULL && entry->hypertable != NULL));
 	return entry == NULL ? NULL : entry->hypertable;
+}
+
+/*
+ * Reuse entries warmed by query preprocessing, including negative hypertable
+ * entries. Only cache absence: positive chunk metadata keeps its normal lookup
+ * and lifetime rules. CHUNK and COMPRESSION_SETTINGS changes invalidate these
+ * entries through the hypertable cache proxy, including attachment of an
+ * existing ordinary relation and transaction rollback.
+ * A planner may still hold a retired cache pin after invalidation; never trust
+ * its negative flags, even though its memory is still alive.
+ */
+int32
+ts_hypertable_cache_get_chunk_hypertable_id(Cache *cache, Oid relid)
+{
+	HypertableCacheQuery query = { .q.flags = CACHE_FLAG_CHECK, .relid = relid };
+	HypertableCacheEntry *entry = ts_cache_fetch(cache, &query.q);
+
+	if (cache == hypertable_cache_current && entry != NULL && entry->not_chunk)
+	{
+		return INVALID_HYPERTABLE_ID;
+	}
+
+	int32 hypertable_id = ts_chunk_get_hypertable_id_by_reloid(relid);
+	if (cache == hypertable_cache_current && entry != NULL && hypertable_id == INVALID_HYPERTABLE_ID)
+	{
+		entry->not_chunk = true;
+	}
+	return hypertable_id;
+}
+
+Oid
+ts_hypertable_cache_get_uncompressed_relid(Cache *cache, Oid relid)
+{
+	HypertableCacheQuery query = { .q.flags = CACHE_FLAG_CHECK, .relid = relid };
+	HypertableCacheEntry *entry = ts_cache_fetch(cache, &query.q);
+
+	if (cache == hypertable_cache_current && entry != NULL && entry->not_compressed_relation)
+	{
+		return InvalidOid;
+	}
+
+	Oid uncompressed_relid = ts_relation_get_uncompressed_relid(relid);
+	if (cache == hypertable_cache_current && entry != NULL && !OidIsValid(uncompressed_relid))
+	{
+		entry->not_compressed_relation = true;
+	}
+	return uncompressed_relid;
 }
 
 extern TSDLLEXPORT Cache *

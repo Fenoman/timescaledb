@@ -50,6 +50,7 @@ typedef struct TimescaleDBPrivate
 extern TSDLLEXPORT bool ts_rte_is_hypertable(const RangeTblEntry *rte);
 extern TSDLLEXPORT bool ts_rte_is_marked_for_expansion(const RangeTblEntry *rte);
 extern TSDLLEXPORT void ts_rte_mark_compressed_relation(RangeTblEntry *rte);
+extern TSDLLEXPORT bool ts_rte_is_compressed_relation(const RangeTblEntry *rte);
 extern TSDLLEXPORT bool ts_contains_external_param(Node *node);
 extern TSDLLEXPORT bool ts_contains_join_param(Node *node);
 extern TSDLLEXPORT Plan *ts_add_sort_if_needed(PlannerInfo *root, Plan *plan, Path *path,

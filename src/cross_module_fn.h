@@ -186,7 +186,7 @@ typedef struct CrossModuleFunctions
 	PGFunction compact_chunk;
 	PGFunction get_compressed_chunk_index_for_recompression;
 
-	void (*preprocess_query_tsl)(Query *parse, int *cursor_opts);
+	void (*preprocess_query_tsl)(Query *parse, int *cursor_opts, bool has_coalesce);
 	PGFunction merge_chunks;
 	PGFunction split_chunk;
 
