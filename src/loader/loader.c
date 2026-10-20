@@ -466,14 +466,18 @@ stop_workers_on_db_drop(DropdbStmt *drop_db_statement)
 	}
 }
 
-static bool
-database_allowconn(const Oid db_oid)
+/*
+ * Read the connection flags of a database. The caller decides what to do with
+ * the scheduler of a database that allows connections but is a template.
+ */
+static void
+database_get_flags(const Oid db_oid, bool *allowconn, bool *istemplate)
 {
 	Relation pg_database;
 	ScanKeyData entry[1];
 	SysScanDesc scan;
 	HeapTuple dbtuple;
-	bool allowconn = false;
+	Form_pg_database pgdb;
 
 	pg_database = table_open(DatabaseRelationId, AccessShareLock);
 	ScanKeyInit(&entry[0],
@@ -493,12 +497,12 @@ database_allowconn(const Oid db_oid)
 				 errmsg("database with OID \"%u\" does not exist", db_oid)));
 	}
 
-	allowconn = ((Form_pg_database) GETSTRUCT(dbtuple))->datallowconn;
+	pgdb = (Form_pg_database) GETSTRUCT(dbtuple);
+	*allowconn = pgdb->datallowconn;
+	*istemplate = pgdb->datistemplate;
 
 	systable_endscan(scan);
 	table_close(pg_database, AccessShareLock);
-
-	return allowconn;
 }
 
 static void
@@ -543,6 +547,16 @@ post_analyze_hook(ParseState *pstate, Query *query, JumbleState *jstate)
 				 * If we create a database and the database used as template
 				 * has background workers we need to stop those background
 				 * workers connected to the template database.
+				 *
+				 * A RESTART also starts a scheduler where none is running, and
+				 * the new scheduler connects to the template database while it
+				 * waits for this transaction to finish. In a database with
+				 * datistemplate set, such as template1, the launcher does not
+				 * run schedulers and the started one exits as soon as it has
+				 * waited, so the connection only makes CREATE DATABASE fail
+				 * with "source database is being accessed by other users".
+				 * Send STOP instead: it still terminates a scheduler left over
+				 * from before the database became a template, but starts none.
 				 */
 				CreatedbStmt *stmt = (CreatedbStmt *) query->utilityStmt;
 				ListCell *lc;
@@ -554,11 +568,22 @@ post_analyze_hook(ParseState *pstate, Query *query, JumbleState *jstate)
 						strcmp(option->defname, "template") == 0)
 					{
 						Oid db_oid = get_database_oid(defGetString(option), false);
+						bool allowconn;
+						bool istemplate;
 
-						if (OidIsValid(db_oid) && database_allowconn(db_oid))
+						if (!OidIsValid(db_oid))
 						{
-							ts_bgw_message_send_and_wait(RESTART, db_oid);
+							continue;
 						}
+
+						database_get_flags(db_oid, &allowconn, &istemplate);
+
+						if (!allowconn)
+						{
+							continue;
+						}
+
+						ts_bgw_message_send_and_wait(istemplate ? STOP : RESTART, db_oid);
 					}
 				}
 				break;
