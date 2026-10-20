@@ -460,7 +460,7 @@ is_db_owner(Oid db_oid)
 
 /* Whether the database may be used as template for CREATE DATABASE */
 static bool
-database_usable_as_template(const Oid db_oid, bool *istemplate)
+database_usable_as_template(const Oid db_oid)
 {
 	Relation pg_database;
 	ScanKeyData entry[1];
@@ -488,7 +488,6 @@ database_usable_as_template(const Oid db_oid, bool *istemplate)
 	}
 
 	dbform = (Form_pg_database) GETSTRUCT(dbtuple);
-	*istemplate = dbform->datistemplate;
 	usable = dbform->datallowconn && (dbform->datistemplate || is_db_owner(db_oid));
 
 	systable_endscan(scan);
@@ -640,12 +639,11 @@ notify_bg_workers_of_database_command(Node *stmt, ProcessUtilityContext context)
 				{
 					Oid db_oid = get_database_oid(defGetString(option), false);
 
-					bool istemplate;
-
 					if (have_createdb_privilege() && OidIsValid(db_oid) &&
-						database_usable_as_template(db_oid, &istemplate))
+						database_usable_as_template(db_oid))
 					{
-						ts_bgw_message_send_and_wait(istemplate ? STOP : RESTART, db_oid);
+						/* The scheduler waits for the copy to commit before connecting. */
+						ts_bgw_message_send_and_wait(RESTART, db_oid);
 					}
 				}
 			}

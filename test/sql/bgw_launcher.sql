@@ -31,20 +31,16 @@ DROP DATABASE :TEST_DBNAME WITH (FORCE);
 SELECT wait_worker_counts(1,0,1,0);
 
 -- Now let's restart the scheduler in test db 2 and make sure our backend_start changed
+SELECT wait_for_bgw_scheduler(:'TEST_DBNAME_2');
 SELECT backend_start as orig_backend_start
 FROM pg_stat_activity
 WHERE backend_type = 'TimescaleDB Background Worker Scheduler'
 AND datname = :'TEST_DBNAME_2' \gset
--- We'll do this in a txn so that we can see that the worker locks on our txn before continuing
+-- We'll do this in a txn: the new worker waits for our txn before it connects,
+-- so the database has no scheduler until we commit
 BEGIN;
 SELECT _timescaledb_functions.restart_background_workers();
-SELECT wait_worker_counts(1,0,1,0);
-
-SELECT (backend_start > :'orig_backend_start'::timestamptz) backend_start_changed,
-(wait_event = 'virtualxid') wait_event_changed
-FROM pg_stat_activity
-WHERE backend_type = 'TimescaleDB Background Worker Scheduler'
-AND datname = :'TEST_DBNAME_2';
+SELECT wait_worker_counts(1,0,0,0);
 COMMIT;
 
 SELECT wait_worker_counts(1,0,1,0);
@@ -107,6 +103,7 @@ SELECT wait_worker_counts(1,0,1,0);
 
 -- Make sure drop extension statement restarts the worker and on rollback it keeps running
 -- Now let's restart the scheduler and make sure our backend_start changed
+SELECT wait_for_bgw_scheduler(:'TEST_DBNAME_2');
 SELECT backend_start as orig_backend_start
 FROM pg_stat_activity
 WHERE backend_type = 'TimescaleDB Background Worker Scheduler'
@@ -114,7 +111,8 @@ AND datname = :'TEST_DBNAME_2' \gset
 
 BEGIN;
 DROP EXTENSION timescaledb;
-SELECT wait_worker_counts(1,0,1,0);
+-- The restarted worker waits for this txn before it connects
+SELECT wait_worker_counts(1,0,0,0);
 ROLLBACK;
 
 CREATE FUNCTION wait_greater(TIMESTAMPTZ,TEXT) RETURNS BOOLEAN LANGUAGE PLPGSQL AS
@@ -141,6 +139,7 @@ $BODY$;
 SELECT wait_greater(:'orig_backend_start',:'TEST_DBNAME_2');
 
 -- Make sure canceling the launcher backend causes a restart of schedulers
+SELECT wait_for_bgw_scheduler(:'TEST_DBNAME_2');
 SELECT backend_start as orig_backend_start
 FROM pg_stat_activity
 WHERE backend_type = 'TimescaleDB Background Worker Scheduler'
@@ -155,37 +154,30 @@ SELECT wait_greater(:'orig_backend_start', :'TEST_DBNAME_2');
 -- Make sure running pre_restore function stops background workers
 SELECT timescaledb_pre_restore();
 SELECT wait_worker_counts(1,0,0,0);
--- Make sure a restart with restoring on first starts the background worker
+-- A restart with restoring on starts the worker only after the txn commits,
+-- and that worker exits when it sees that restoring is on
 BEGIN;
 SELECT _timescaledb_functions.restart_background_workers();
-SELECT wait_worker_counts(1,0,1,0);
+SELECT wait_worker_counts(1,0,0,0);
 COMMIT;
--- Then the worker dies when it sees that restoring is on after the txn commits
 SELECT wait_worker_counts(1,0,0,0);
 
---And post_restore starts them
+--And post_restore starts them once its txn commits
 BEGIN;
 SELECT timescaledb_post_restore();
-SELECT wait_worker_counts(1,0,1,0);
+SELECT wait_worker_counts(1,0,0,0);
 COMMIT;
 -- And they stay started
 SELECT wait_worker_counts(1,0,1,0);
 
--- A single timescaledb_post_restore() should keep the scheduler running
--- even if a new worker reads pg_db_role_settings before post_restore's
--- RESET commits and stores restoring='on' as the placeholder's reset_val.
--- Without the loader fix the versioned .so picks up that stale value via
--- DefineCustomBoolVariable and the scheduler exits silently.
+-- A single timescaledb_post_restore() keeps the scheduler running: the new
+-- worker connects after post_restore's RESET has committed and reads
+-- restoring='off' from pg_db_role_settings, and process_settings() forces the
+-- placeholder's reset_val to off in any case
 SELECT timescaledb_pre_restore();
 SELECT wait_worker_counts(1,0,0,0);
-BEGIN;
 SELECT timescaledb_post_restore();
--- Wait for the worker to read pg_db_role_settings (which still shows
--- restoring='on' because the RESET has not committed yet).
 SELECT wait_worker_counts(1,0,1,0);
-SELECT pg_sleep(1);
-COMMIT;
--- Give the scheduler time to exit (bug) or keep running (fix).
 SELECT pg_sleep(2);
 SELECT wait_worker_counts(1,0,1,0);
 
@@ -217,14 +209,15 @@ ALTER ROLE :ROLE_DEFAULT_PERM_USER WITH NOSUPERUSER;
 \c template1
 \ir include/bgw_launcher_utils.sql
 BEGIN;
--- Then create extension there in a txn and make sure we see a scheduler start
+-- Then create extension there in a txn. The scheduler it requests waits for
+-- our txn before it connects, so the template has no scheduler until commit
 
 SET client_min_messages = ERROR;
 CREATE EXTENSION timescaledb CASCADE;
 RESET client_min_messages;
-SELECT wait_worker_counts(1,0,0,1);
+SELECT wait_worker_counts(1,0,0,0);
 COMMIT;
--- End our transaction and it should immediately exit because it's a template database.
+-- After our transaction the scheduler connects, sees a template database and exits.
 SELECT wait_worker_counts(1,0,0,0);
 
 \c :TEST_DBNAME_2
