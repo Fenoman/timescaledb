@@ -83,6 +83,9 @@ typedef enum SchedulerState
 #define BGW_LAUNCHER_RESTART_TIME_S 60
 #endif
 
+/* How often a starting scheduler rechecks the transaction it waits for. */
+#define SCHEDULER_VXID_POLL_MS 10
+
 static volatile sig_atomic_t got_SIGHUP = false;
 
 int ts_guc_bgw_scheduler_restart_time_sec = BGW_NEVER_RESTART;
@@ -1024,12 +1027,12 @@ process_settings(Oid databaseid)
 	}
 
 	/*
-	 * Force the restoring placeholder's reset_val to "off". The worker may
-	 * have read pg_db_role_settings before post_restore's RESET committed and
-	 * stored the old 'on' value as reset_val. ApplySetting below only applies
-	 * rows that exist, so the stale reset_val would be inherited by the real
-	 * GUC once DefineCustomBoolVariable runs and the scheduler would exit.
-	 * NULL would only restore that stale value, so pass "off" explicitly.
+	 * Force the restoring placeholder's reset_val to "off". A worker that
+	 * connected while a pre_restore row was still visible has stored 'on' as
+	 * the placeholder's reset_val, and ApplySetting below only applies rows
+	 * that exist, so the stale reset_val would be inherited by the real GUC
+	 * once DefineCustomBoolVariable runs and the scheduler would exit. NULL
+	 * would only restore that stale value, so pass "off" explicitly.
 	 */
 	SetConfigOption(MAKE_EXTOPTION("restoring"), "off", PGC_SUSET, PGC_S_DATABASE);
 
@@ -1127,27 +1130,36 @@ ts_bgw_db_scheduler_entrypoint(PG_FUNCTION_ARGS)
 	BackgroundWorkerUnblockSignals();
 
 	/*
+	 * Wait until whatever vxid that potentially called us finishes before we
+	 * connect to the database. The transaction may be a CREATE DATABASE that
+	 * uses this database as its template: it fails if any other backend is
+	 * connected to the template while it runs, and a scheduler connected here
+	 * and waiting for it would be such a backend. Polling the vxid needs no
+	 * transaction, so it can run before the connection, like the recovery
+	 * conflict wait in the startup process does.
+	 */
+	memcpy(&vxid, MyBgworkerEntry->bgw_extra, sizeof(VirtualTransactionId));
+	while (VirtualTransactionIdIsValid(vxid) && !VirtualXactLock(vxid, false))
+	{
+		int wl_rc = WaitLatch(MyLatch,
+							  WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT,
+							  SCHEDULER_VXID_POLL_MS,
+							  PG_WAIT_EXTENSION);
+		ResetLatch(MyLatch);
+		if (wl_rc & WL_POSTMASTER_DEATH)
+		{
+			bgw_on_postmaster_death();
+		}
+		CHECK_FOR_INTERRUPTS();
+	}
+
+	/*
 	 * Connecting to a database that does not allow connections will generate
 	 * a FATAL error, which might trigger restarts, so we override this check
 	 * and do it ourselves.
 	 */
 	BackgroundWorkerInitializeConnectionByOid(db_id, InvalidOid, BGWORKER_BYPASS_ALLOWCONN);
 	pgstat_report_appname(MyBgworkerEntry->bgw_name);
-
-	/*
-	 * Wait until whatever vxid that potentially called us finishes before we
-	 * happens in a txn so it's cleaned up correctly if we get a sigkill in
-	 * the meantime, but we will need stop after and take a new txn so we can
-	 * see the correct state after its effects
-	 */
-	StartTransactionCommand();
-	(void) GetTransactionSnapshot();
-	memcpy(&vxid, MyBgworkerEntry->bgw_extra, sizeof(VirtualTransactionId));
-	if (VirtualTransactionIdIsValid(vxid))
-	{
-		VirtualXactLock(vxid, true);
-	}
-	CommitTransactionCommand();
 
 	/*
 	 * Essentially we morph into the versioned worker here, if there is one.
