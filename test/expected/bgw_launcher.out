@@ -628,6 +628,36 @@ SELECT wait_for_bgw_scheduler(:'TEST_DBNAME');
  BGW Scheduler found.
 
 DROP DATABASE db_from_template WITH (FORCE);
+-- Creating a database from a template database must not start a scheduler
+-- there: a scheduler started for the request connects to the template and
+-- waits for this transaction, which is exactly what makes CREATE DATABASE fail
+-- with "source database is being accessed by other users". Parsing the
+-- statement inside a transaction sends the request to the launcher while the
+-- statement itself is rejected, so the template can be inspected before the
+-- transaction ends.
+CREATE DATABASE db_template IS_TEMPLATE true;
+BEGIN;
+SAVEPOINT create_from_template;
+\set ON_ERROR_STOP 0
+CREATE DATABASE db_from_template_db TEMPLATE db_template;
+ERROR:  CREATE DATABASE cannot run inside a transaction block
+\set ON_ERROR_STOP 1
+ROLLBACK TO SAVEPOINT create_from_template;
+SELECT pg_sleep(0.5);
+ pg_sleep 
+----------
+ 
+
+SELECT count(*) AS template_schedulers
+FROM pg_stat_activity
+WHERE datname = 'db_template' AND backend_type = 'TimescaleDB Background Worker Scheduler';
+ template_schedulers 
+---------------------
+                   0
+
+ROLLBACK;
+ALTER DATABASE db_template IS_TEMPLATE false;
+DROP DATABASE db_template WITH (FORCE);
 -- test alter database set tablespace
 SET client_min_messages TO error;
 DROP TABLESPACE IF EXISTS tablespace1;
