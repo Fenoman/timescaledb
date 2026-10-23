@@ -409,7 +409,7 @@ set_rel_consider_parallel(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte
 
 				if (proparallel != PROPARALLEL_SAFE)
 					return;
-				if (!is_parallel_safe(root, (Node *) rte->tablesample->args))
+				if (!ts_is_parallel_safe(root, (Node *) rte->tablesample->args))
 					return;
 			}
 
@@ -475,7 +475,7 @@ set_rel_consider_parallel(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte
 
 		case RTE_FUNCTION:
 			/* Check for parallel-restricted functions. */
-			if (!is_parallel_safe(root, (Node *) rte->functions))
+			if (!ts_is_parallel_safe(root, (Node *) rte->functions))
 				return;
 			break;
 
@@ -485,7 +485,7 @@ set_rel_consider_parallel(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte
 
 		case RTE_VALUES:
 			/* Check for parallel-restricted functions. */
-			if (!is_parallel_safe(root, (Node *) rte->values_lists))
+			if (!ts_is_parallel_safe(root, (Node *) rte->values_lists))
 				return;
 			break;
 
@@ -527,14 +527,14 @@ set_rel_consider_parallel(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte
 	 * outer join clauses work correctly.  It would likely break equivalence
 	 * classes, too.
 	 */
-	if (!is_parallel_safe(root, (Node *) rel->baserestrictinfo))
+	if (!ts_is_parallel_safe(root, (Node *) rel->baserestrictinfo))
 		return;
 
 	/*
 	 * Likewise, if the relation's outputs are not parallel-safe, give up.
 	 * (Usually, they're just Vars, but sometimes they're not.)
 	 */
-	if (!is_parallel_safe(root, (Node *) rel->reltarget->exprs))
+	if (!ts_is_parallel_safe(root, (Node *) rel->reltarget->exprs))
 		return;
 
 	/* We have a winner. */
