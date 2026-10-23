@@ -54,6 +54,7 @@
 #include <utils/inval.h>
 #include <utils/lsyscache.h>
 #include <utils/palloc.h>
+#include <utils/snapmgr.h>
 #include <utils/syscache.h>
 #include <utils/timestamp.h>
 #include <utils/typcache.h>
@@ -3885,6 +3886,18 @@ ts_chunk_drop_by_relid(Oid relid, DropBehavior behavior, int32 log_level)
 
 	/* Remove the chunk from the chunk table */
 	ts_chunk_delete_by_relid(relid, behavior);
+
+	/*
+	 * Reload the relation's pg_class entry before dropping it. When this
+	 * backend had to wait for a concurrent compress_chunk() to commit, on
+	 * Tantor SE 18 the syscache copy of the second chunk's pg_class row kept
+	 * its pre-compression version, and RemoveConstraintById() then failed
+	 * with "tuple concurrently updated". Upstream PostgreSQL evicts the entry
+	 * through the invalidation messages of the committed transaction. The
+	 * explicit reload costs one cache miss per dropped relation.
+	 */
+	SysCacheInvalidate(RELOID, GetSysCacheHashValue1(RELOID, ObjectIdGetDatum(relid)));
+	InvalidateCatalogSnapshot();
 
 	/* Drop the table */
 	performDeletion(&objaddr, behavior, 0);
