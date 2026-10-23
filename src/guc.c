@@ -638,7 +638,7 @@ _guc_init(void)
 	DefineCustomBoolVariable(MAKE_EXTOPTION("use_custom_toaster"),
 							 "Use a custom TOAST writer for compressed row inserts",
 							 "This setting is only used for compression. It has no effect on "
-							 "PostgreSQL 19 and above.",
+							 "PostgreSQL 19 and above or on servers with 64-bit transaction ids.",
 							 &ts_guc_use_custom_toaster,
 							 false,
 							 PGC_USERSET,

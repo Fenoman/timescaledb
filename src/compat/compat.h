@@ -732,6 +732,17 @@ pg_cmp_u32(uint32 a, uint32 b)
 #define ts_cost_append(path, root) cost_append(path)
 #endif
 
+/*
+ * Some downstream builds add an out argument to is_parallel_safe(). The
+ * imported planner code only needs the boolean result, and the server accepts
+ * a NULL pointer for the extra argument.
+ */
+#if TS_IS_PARALLEL_SAFE_HAS_TEMP_FLUSH
+#define ts_is_parallel_safe(root, node) is_parallel_safe(root, node, NULL)
+#else
+#define ts_is_parallel_safe(root, node) is_parallel_safe(root, node)
+#endif
+
 #if TS_CREATE_APPEND_PATH_HAS_EXTRA_BOOL
 #define ts_create_append_path(root,                                                                \
 							  rel,                                                                 \
@@ -793,12 +804,42 @@ ts_heaptuple_get_xmin(HeapTuple tuple)
 static inline TransactionId
 ts_heaptuple_get_update_xid(HeapTuple tuple)
 {
-#if TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
-	return HeapTupleGetUpdateXid(tuple);
+#if TS_HEAPTUPLE_GET_UPDATE_XID_ANY_EXISTS
+	return HeapTupleGetUpdateXidAny(tuple);
+#elif TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+	/*
+	 * HeapTupleGetUpdateXid() resolves the xmax as a MultiXactId whatever the
+	 * infomask says, unlike upstream's HeapTupleHeaderGetUpdateXid(), so the
+	 * checks of the upstream accessor have to happen here.
+	 */
+	if (!(tuple->t_data->t_infomask & HEAP_XMAX_INVALID) &&
+		(tuple->t_data->t_infomask & HEAP_XMAX_IS_MULTI) &&
+		!(tuple->t_data->t_infomask & HEAP_XMAX_LOCK_ONLY))
+	{
+		return HeapTupleGetUpdateXid(tuple);
+	}
+	return HeapTupleGetRawXmax(tuple);
 #elif TS_HEAPTUPLEHEADER_GET_UPDATE_XID_EXISTS
 	return HeapTupleHeaderGetUpdateXid(tuple->t_data);
 #else
 #error "No compatible update-xid accessor found for HeapTuple"
+#endif
+}
+
+/*
+ * Servers with 64-bit transaction ids keep a tuple's xmin and xmax in
+ * HeapTupleData and derive the on-page header fields from them when the tuple
+ * is placed on a page. Copying the header fields alone loses the visibility
+ * information there, so the in-memory ids have to be copied as well.
+ */
+static inline void
+ts_heaptuple_copy_xids(HeapTuple dest, const HeapTupleData *src)
+{
+#if TS_TUPLE_XIDS_PAGE_RELATIVE
+	HeapTupleCopyXids(dest, src);
+#else
+	(void) dest;
+	(void) src;
 #endif
 }
 

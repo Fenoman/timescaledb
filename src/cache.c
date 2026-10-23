@@ -326,6 +326,16 @@ cache_xact_end(XactEvent event, void *arg)
 		case XACT_EVENT_PARALLEL_ABORT:
 			release_all_pinned_caches();
 			break;
+#if TS_XACT_EVENT_PRE_ABORT_EXISTS
+		case XACT_EVENT_PRE_ABORT:
+		case XACT_EVENT_PARALLEL_PRE_ABORT:
+			/*
+			 * The transaction is being aborted: the pins still held are
+			 * expected and get released at XACT_EVENT_ABORT, which follows.
+			 * Running the commit-time leak check here would misreport them.
+			 */
+			break;
+#endif
 		default:
 		{
 			/*
@@ -382,6 +392,9 @@ cache_subxact_abort(SubXactEvent event, SubTransactionId subtxn_id, SubTransacti
 	{
 		case SUBXACT_EVENT_START_SUB:
 		case SUBXACT_EVENT_PRE_COMMIT_SUB:
+#if TS_SUBXACT_EVENT_PRE_ABORT_SUB_EXISTS
+		case SUBXACT_EVENT_PRE_ABORT_SUB:
+#endif
 			/* do nothing */
 			break;
 		case SUBXACT_EVENT_COMMIT_SUB:

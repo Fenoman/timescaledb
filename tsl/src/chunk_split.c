@@ -391,6 +391,7 @@ route_next_compressed_tuple(TupleTableSlot *slot, SplitContext *scontext, int *r
 		new_tuple->t_data->t_infomask &= ~HEAP_XACT_MASK;
 		new_tuple->t_data->t_infomask2 &= ~HEAP2_XACT_MASK;
 		new_tuple->t_data->t_infomask |= old_tuple->t_data->t_infomask & HEAP_XACT_MASK;
+		ts_heaptuple_copy_xids(new_tuple, old_tuple);
 
 		new_tuple->t_tableOid = RelationGetRelid(rws->targetrel);
 
