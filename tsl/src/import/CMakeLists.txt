@@ -1,11 +1,14 @@
 # The forked toast writer copies core functions as they stand in PG 17.11 and
 # 18.6 and is only built there, so the copies need no version branches of their
-# own. This has to agree with COMPRESSION_TOASTER_SUPPORTED in
-# compression_toast.h, which supplies stand-ins everywhere else.
+# own. Servers that store tuple xids relative to a page base place tuples
+# differently from the copied code, so it is not built there either. This has to
+# agree with COMPRESSION_TOASTER_SUPPORTED in compression_toast.h, which
+# supplies stand-ins everywhere else.
 set(SOURCES "")
 
-if((PG_VERSION_MAJOR EQUAL 17 AND PG_VERSION_MINOR GREATER_EQUAL 11)
-   OR (PG_VERSION_MAJOR EQUAL 18 AND PG_VERSION_MINOR GREATER_EQUAL 6))
+if(((PG_VERSION_MAJOR EQUAL 17 AND PG_VERSION_MINOR GREATER_EQUAL 11)
+    OR (PG_VERSION_MAJOR EQUAL 18 AND PG_VERSION_MINOR GREATER_EQUAL 6))
+   AND NOT TS_TUPLE_XIDS_PAGE_RELATIVE)
   list(
     APPEND
     SOURCES

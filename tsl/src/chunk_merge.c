@@ -590,7 +590,7 @@ copy_table_data_with_map(Relation fromrel, Relation torel, TupleConversionMap *m
 			case HEAPTUPLE_LIVE:
 				break;
 			case HEAPTUPLE_INSERT_IN_PROGRESS:
-				if (!TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetXmin(tuple->t_data)))
+				if (!TransactionIdIsCurrentTransactionId(ts_heaptuple_get_xmin(tuple)))
 				{
 					elog(WARNING,
 						 "concurrent insert in progress within table \"%s\"",
@@ -598,8 +598,7 @@ copy_table_data_with_map(Relation fromrel, Relation torel, TupleConversionMap *m
 				}
 				break;
 			case HEAPTUPLE_DELETE_IN_PROGRESS:
-				if (!TransactionIdIsCurrentTransactionId(
-						HeapTupleHeaderGetUpdateXid(tuple->t_data)))
+				if (!TransactionIdIsCurrentTransactionId(ts_heaptuple_get_update_xid(tuple)))
 				{
 					elog(WARNING,
 						 "concurrent delete in progress within table \"%s\"",

@@ -438,8 +438,6 @@ function(ts_check_pg_c_source_compiles var code)
   check_c_source_compiles("${code}" ${var})
 endfunction()
 
-file(GLOB_RECURSE TS_PG_ACCESS_HEADERS "${PG_INCLUDEDIR_SERVER}/access/*.h")
-
 ts_header_matches(
   TS_EXPRESSION_TREE_MUTATOR_HAS_FLAGS
   "#define[ \t]+expression_tree_mutator\\([^\n\r,]+,[^\n\r,]+,[^\n\r,]+,[^\n\r,]+\\)"
@@ -460,24 +458,19 @@ ts_header_matches(
   "create_append_path\\([^\\)]*double[ \t\r\n]+rows,[ \t\r\n]*bool[ \t\r\n]+[^\\)]*\\)"
   ${PG_INCLUDEDIR_SERVER}/optimizer/pathnode.h)
 
-ts_header_matches(
+# Tuple xid accessors differ between PostgreSQL and downstream builds: upstream
+# reads xmin and the update xid from the tuple header, 64-bit xid builds keep
+# them in HeapTupleData and expose HeapTupleGetXmin(const HeapTupleData *).
+# A header regex cannot tell these apart reliably, so compile a call instead.
+# check_c_source_compiles() skips a probe whose result variable is already set,
+# so the probes below must not be preceded by any other assignment.
+ts_check_pg_c_source_compiles(
   TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
-  "(#define[ \t]+HeapTupleGetXmin\\(|HeapTupleGetXmin\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
-  ${TS_PG_ACCESS_HEADERS})
-
-ts_header_matches(
-  TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
-  "(#define[ \t]+HeapTupleGetUpdateXid\\(|HeapTupleGetUpdateXid\\([ \t\r\n]*(const[ \t\r\n]+)?HeapTuple[ \t\r\n]+)"
-  ${TS_PG_ACCESS_HEADERS})
-
-if(NOT TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE)
-  ts_check_pg_c_source_compiles(
-    TS_HEAPTUPLE_GET_XMIN_TAKES_HEAPTUPLE
-    "
-#include \\\"postgres.h\\\"
-#include \\\"access/htup.h\\\"
-#include \\\"access/htup_details.h\\\"
-#include \\\"access/heapam.h\\\"
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+#include \"access/heapam.h\"
 int main(void)
 {
   HeapTuple tuple = NULL;
@@ -485,16 +478,14 @@ int main(void)
   return 0;
 }
 ")
-endif()
 
-if(NOT TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE)
-  ts_check_pg_c_source_compiles(
-    TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
-    "
-#include \\\"postgres.h\\\"
-#include \\\"access/htup.h\\\"
-#include \\\"access/htup_details.h\\\"
-#include \\\"access/heapam.h\\\"
+ts_check_pg_c_source_compiles(
+  TS_HEAPTUPLE_GET_UPDATE_XID_TAKES_HEAPTUPLE
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+#include \"access/heapam.h\"
 int main(void)
 {
   HeapTuple tuple = NULL;
@@ -502,17 +493,117 @@ int main(void)
   return 0;
 }
 ")
-endif()
 
-ts_header_matches(
+ts_check_pg_c_source_compiles(
   TS_HEAPTUPLEHEADER_GET_XMIN_EXISTS
-  "HeapTupleHeaderGetXmin\\("
-  ${TS_PG_ACCESS_HEADERS})
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+int main(void)
+{
+  HeapTupleHeader header = NULL;
+  (void) HeapTupleHeaderGetXmin(header);
+  return 0;
+}
+")
 
-ts_header_matches(
+ts_check_pg_c_source_compiles(
   TS_HEAPTUPLEHEADER_GET_UPDATE_XID_EXISTS
-  "HeapTupleHeaderGetUpdateXid\\("
-  ${TS_PG_ACCESS_HEADERS})
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+#include \"access/heapam.h\"
+int main(void)
+{
+  HeapTupleHeader header = NULL;
+  (void) HeapTupleHeaderGetUpdateXid(header);
+  return 0;
+}
+")
+
+# On 64-bit xid servers HeapTupleGetUpdateXid() resolves a MultiXactId without
+# checking the infomask first; HeapTupleGetUpdateXidAny() is the variant with
+# the checks of upstream's HeapTupleHeaderGetUpdateXid().
+ts_check_pg_c_source_compiles(
+  TS_HEAPTUPLE_GET_UPDATE_XID_ANY_EXISTS
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleGetUpdateXidAny(tuple);
+  return 0;
+}
+")
+
+# Some downstream builds give is_parallel_safe() a third out argument. A call
+# with three arguments compiles only against such a declaration.
+ts_check_pg_c_source_compiles(
+  TS_IS_PARALLEL_SAFE_HAS_TEMP_FLUSH
+  "
+#include \"postgres.h\"
+#include \"nodes/pathnodes.h\"
+#include \"optimizer/clauses.h\"
+int main(void)
+{
+  PlannerInfo *root = NULL;
+  Node *node = NULL;
+  bool flush = false;
+  (void) is_parallel_safe(root, node, &flush);
+  return 0;
+}
+")
+
+# Some downstream builds add subtransaction callback events.
+ts_check_pg_c_source_compiles(
+  TS_SUBXACT_EVENT_PRE_ABORT_SUB_EXISTS
+  "
+#include \"postgres.h\"
+#include \"access/xact.h\"
+int main(void)
+{
+  SubXactEvent event = SUBXACT_EVENT_PRE_ABORT_SUB;
+  return (int) event;
+}
+")
+
+ts_check_pg_c_source_compiles(
+  TS_XACT_EVENT_PRE_ABORT_EXISTS
+  "
+#include \"postgres.h\"
+#include \"access/xact.h\"
+int main(void)
+{
+  XactEvent event = XACT_EVENT_PRE_ABORT;
+  return (int) event;
+}
+")
+
+# Servers with 64-bit transaction ids keep xmin and xmax in HeapTupleData and
+# write them into the on-page header, relative to a per-page base, only when
+# the tuple is placed on a page. Code copied from core that fills tuple
+# headers itself cannot run there.
+ts_check_pg_c_source_compiles(
+  TS_TUPLE_XIDS_PAGE_RELATIVE
+  "
+#include \"postgres.h\"
+#include \"access/htup.h\"
+#include \"access/htup_details.h\"
+#include \"storage/bufpage.h\"
+int main(void)
+{
+  HeapTupleData src = {0};
+  HeapTupleData dst = {0};
+  Page page = NULL;
+  HeapTupleCopyXids(&dst, &src);
+  HeapTupleHeaderStoreXmin(page, &dst);
+  return 0;
+}
+")
 
 find_path(
   PG_SOURCE_DIR src/include/pg_config.h.in

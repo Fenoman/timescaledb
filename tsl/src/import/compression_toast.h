@@ -42,19 +42,24 @@
 #include <storage/bufmgr.h>
 #include <utils/relcache.h>
 
+#include "compat/compat.h"
 #include "compression/compression.h"
 
 /*
  * Whether the forked toast writer may run. Only compatible with
- * PG17.11+ and PG18.6+.
+ * PG17.11+ and PG18.6+, and not with servers that store tuple xids relative
+ * to a page base: there the server computes the on-page xmin when it places
+ * the tuple, which the copied insert path does not do, so tuples written by it
+ * come out invisible.
  *
  * The files under access/ are only compiled where this holds, so they stay
  * verbatim copies of core with no version branches of their own. Keep this in
  * step with CMakeLists.txt.
  */
 #define COMPRESSION_TOASTER_SUPPORTED                                                              \
-	((PG_VERSION_NUM >= 170011 && PG_VERSION_NUM < 180000) ||                                      \
-	 (PG_VERSION_NUM >= 180006 && PG_VERSION_NUM < 190000))
+	(((PG_VERSION_NUM >= 170011 && PG_VERSION_NUM < 180000) ||                                     \
+	  (PG_VERSION_NUM >= 180006 && PG_VERSION_NUM < 190000)) &&                                    \
+	 !TS_TUPLE_XIDS_PAGE_RELATIVE)
 
 #if COMPRESSION_TOASTER_SUPPORTED
 
