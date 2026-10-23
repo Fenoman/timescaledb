@@ -4,10 +4,13 @@ set(PROVE_TEST_FILES 001_job_crash_log.pl 002_logrepl_decomp_marker.pl
                      008_plain_table_planning.pl)
 
 # The custom toaster only runs on PG 17.11+ and 18.6+, which is what
-# COMPRESSION_TOASTER_SUPPORTED in tsl/src/import/compression_toast.h allows.
-# Everywhere else this test has nothing to look at.
-if((PG_VERSION_MAJOR EQUAL 17 AND PG_VERSION_MINOR GREATER_EQUAL 11)
-   OR (PG_VERSION_MAJOR EQUAL 18 AND PG_VERSION_MINOR GREATER_EQUAL 6))
+# COMPRESSION_TOASTER_SUPPORTED in tsl/src/import/compression_toast.h allows,
+# and not on servers that store tuple xids relative to a page base, where
+# tsl/src/import/CMakeLists.txt does not build it. Everywhere else this test has
+# nothing to look at.
+if(((PG_VERSION_MAJOR EQUAL 17 AND PG_VERSION_MINOR GREATER_EQUAL 11)
+    OR (PG_VERSION_MAJOR EQUAL 18 AND PG_VERSION_MINOR GREATER_EQUAL 6))
+   AND NOT TS_TUPLE_XIDS_PAGE_RELATIVE)
   list(APPEND PROVE_TEST_FILES 007_custom_toaster.pl)
 endif()
 
