@@ -1,0 +1,41 @@
+Parsed test spec with 3 sessions
+
+starting permutation: s3_enable s1_compress s2_drop s3_release s2_chunks
+step s3_enable: 
+	SELECT debug_waitpoint_enable('compress_chunk_impl_start');
+
+debug_waitpoint_enable
+----------------------
+                      
+
+step s1_compress: 
+	SELECT count(compress_chunk(chunk))
+	FROM (SELECT chunk FROM show_chunks('conditions') chunk ORDER BY 1 LIMIT 1) AS c;
+ <waiting ...>
+step s2_drop: 
+	SELECT count(*) FROM drop_chunks('conditions', older_than => '2018-12-03 00:00'::timestamptz);
+ <waiting ...>
+step s3_release: 
+	SELECT debug_waitpoint_release('compress_chunk_impl_start');
+
+debug_waitpoint_release
+-----------------------
+                       
+
+step s1_compress: <... completed>
+count
+-----
+    1
+
+step s2_drop: <... completed>
+count
+-----
+    2
+
+step s2_chunks: 
+	SELECT count(*) FROM show_chunks('conditions');
+
+count
+-----
+    1
+
