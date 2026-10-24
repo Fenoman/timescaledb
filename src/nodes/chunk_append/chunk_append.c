@@ -125,7 +125,8 @@ create_group_subpath(PlannerInfo *root, RelOptInfo *rel, List *group, List *path
 }
 
 ChunkAppendPath *
-ts_chunk_append_path_copy(ChunkAppendPath *ca, List *subpaths, PathTarget *pathtarget)
+ts_chunk_append_path_copy(PlannerInfo *root, ChunkAppendPath *ca, List *subpaths,
+						  PathTarget *pathtarget)
 {
 	ListCell *lc;
 	double startup_cost = 0;
@@ -145,14 +146,16 @@ ts_chunk_append_path_copy(ChunkAppendPath *ca, List *subpaths, PathTarget *patht
 
 		/*
 		 * cost_append() accounts for the cost of sorting the children separately,
-		 * so here we must follow this logic.
+		 * so here we must follow this logic. cost_sort() needs the real root:
+		 * upstream PostgreSQL does not read it, but Tantor SE looks up the sort
+		 * key statistics through it when enable_detailed_sort_cost is on.
 		 */
 		if (pathkeys != NIL && !pathkeys_contained_in(pathkeys, child->pathkeys))
 		{
 			Path sort_path; /* dummy for result of cost_sort */
 
 			cost_sort(&sort_path,
-					  /* root = */ NULL,
+					  root,
 					  pathkeys,
 #if PG18_GE
 					  child->disabled_nodes,

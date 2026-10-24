@@ -2086,7 +2086,8 @@ push_projection_below_single_child_append(PlannerInfo *root, List *pathlist)
 		}
 		else
 		{
-			ChunkAppendPath *copy = ts_chunk_append_path_copy((ChunkAppendPath *) append,
+			ChunkAppendPath *copy = ts_chunk_append_path_copy(root,
+															  (ChunkAppendPath *) append,
 															  new_subpaths,
 															  projection->path.pathtarget);
 			new_append = &copy->cpath.path;
