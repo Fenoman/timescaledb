@@ -588,52 +588,52 @@ GROUP BY ts, sensor_id ORDER BY ts, sensor_id LIMIT 5;
 --- QUERY PLAN ---
  Limit (actual rows=5.00 loops=1)
    Output: sensor_readings.ts, sensor_readings.sensor_id, (count(*))
-   ->  Sort (actual rows=5.00 loops=1)
-         Output: sensor_readings.ts, sensor_readings.sensor_id, (count(*))
-         Sort Key: sensor_readings.ts, sensor_readings.sensor_id
-         Sort Method: top-N heapsort 
-         ->  Finalize HashAggregate (actual rows=3000.00 loops=1)
-               Output: sensor_readings.ts, sensor_readings.sensor_id, count(*)
-               Group Key: sensor_readings.ts, sensor_readings.sensor_id
+   ->  Finalize GroupAggregate (actual rows=5.00 loops=1)
+         Output: sensor_readings.ts, sensor_readings.sensor_id, count(*)
+         Group Key: sensor_readings.ts, sensor_readings.sensor_id
+         ->  Sort (actual rows=6.00 loops=1)
+               Output: sensor_readings.ts, sensor_readings.sensor_id, (PARTIAL count(*))
+               Sort Key: sensor_readings.ts, sensor_readings.sensor_id
+               Sort Method: quicksort 
                ->  Custom Scan (ChunkAppend) on public.sensor_readings (actual rows=3000.00 loops=1)
                      Output: sensor_readings.ts, sensor_readings.sensor_id, (PARTIAL count(*))
                      Order: sensor_readings.ts
                      Startup Exclusion: false
                      Runtime Exclusion: false
-                     ->  Sort (actual rows=999.00 loops=1)
-                           Output: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id, (PARTIAL count(*))
-                           Sort Key: _hyper_4_17_chunk.ts
-                           Sort Method: quicksort 
-                           ->  Partial HashAggregate (actual rows=999.00 loops=1)
-                                 Output: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id, PARTIAL count(*)
-                                 Group Key: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id
+                     ->  Partial GroupAggregate (actual rows=999.00 loops=1)
+                           Output: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id, PARTIAL count(*)
+                           Group Key: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id
+                           ->  Sort (actual rows=999.00 loops=1)
+                                 Output: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id
+                                 Sort Key: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id
+                                 Sort Method: quicksort 
                                  ->  Index Scan Backward using _hyper_4_17_chunk_sensor_readings_ts_idx on _timescaledb_internal._hyper_4_17_chunk (actual rows=999.00 loops=1)
                                        Output: _hyper_4_17_chunk.ts, _hyper_4_17_chunk.sensor_id
-                     ->  Sort (actual rows=1000.00 loops=1)
-                           Output: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id, (PARTIAL count(*))
-                           Sort Key: _hyper_4_18_chunk.ts
-                           Sort Method: quicksort 
-                           ->  Partial HashAggregate (actual rows=1000.00 loops=1)
-                                 Output: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id, PARTIAL count(*)
-                                 Group Key: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id
+                     ->  Partial GroupAggregate (actual rows=1000.00 loops=1)
+                           Output: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id, PARTIAL count(*)
+                           Group Key: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id
+                           ->  Sort (actual rows=1000.00 loops=1)
+                                 Output: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id
+                                 Sort Key: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id
+                                 Sort Method: quicksort 
                                  ->  Index Scan Backward using _hyper_4_18_chunk_sensor_readings_ts_idx on _timescaledb_internal._hyper_4_18_chunk (actual rows=1000.00 loops=1)
                                        Output: _hyper_4_18_chunk.ts, _hyper_4_18_chunk.sensor_id
-                     ->  Sort (actual rows=1000.00 loops=1)
-                           Output: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id, (PARTIAL count(*))
-                           Sort Key: _hyper_4_19_chunk.ts
-                           Sort Method: quicksort 
-                           ->  Partial HashAggregate (actual rows=1000.00 loops=1)
-                                 Output: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id, PARTIAL count(*)
-                                 Group Key: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id
+                     ->  Partial GroupAggregate (actual rows=1000.00 loops=1)
+                           Output: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id, PARTIAL count(*)
+                           Group Key: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id
+                           ->  Sort (actual rows=1000.00 loops=1)
+                                 Output: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id
+                                 Sort Key: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id
+                                 Sort Method: quicksort 
                                  ->  Index Scan Backward using _hyper_4_19_chunk_sensor_readings_ts_idx on _timescaledb_internal._hyper_4_19_chunk (actual rows=1000.00 loops=1)
                                        Output: _hyper_4_19_chunk.ts, _hyper_4_19_chunk.sensor_id
-                     ->  Sort (actual rows=1.00 loops=1)
-                           Output: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id, (PARTIAL count(*))
-                           Sort Key: _hyper_4_20_chunk.ts
-                           Sort Method: quicksort 
-                           ->  Partial HashAggregate (actual rows=1.00 loops=1)
-                                 Output: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id, PARTIAL count(*)
-                                 Group Key: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id
+                     ->  Partial GroupAggregate (actual rows=1.00 loops=1)
+                           Output: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id, PARTIAL count(*)
+                           Group Key: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id
+                           ->  Sort (actual rows=1.00 loops=1)
+                                 Output: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id
+                                 Sort Key: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id
+                                 Sort Method: quicksort 
                                  ->  Index Scan Backward using _hyper_4_20_chunk_sensor_readings_ts_idx on _timescaledb_internal._hyper_4_20_chunk (actual rows=1.00 loops=1)
                                        Output: _hyper_4_20_chunk.ts, _hyper_4_20_chunk.sensor_id
 
