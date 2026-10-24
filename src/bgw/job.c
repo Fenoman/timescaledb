@@ -653,8 +653,7 @@ cancel_worker_for_job(const char *appname)
 	for (int i = 1; i <= num_backends; i++)
 	{
 		const LocalPgBackendStatus *local_beentry = pgstat_get_local_beentry_by_index(i);
-		const PgBackendStatus *beentry =
-			(const PgBackendStatus *) &local_beentry->backendStatus;
+		const PgBackendStatus *beentry = ts_local_beentry_status(local_beentry);
 		if (beentry->st_databaseid == MyDatabaseId && beentry->st_appname[0] != '\0' &&
 			strcmp(beentry->st_appname, appname) == 0)
 		{
