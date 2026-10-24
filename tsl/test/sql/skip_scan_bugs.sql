@@ -290,7 +290,8 @@ INSERT INTO t_10758 SELECT '2024-01-01'::timestamptz + ((i % 10) || ' seconds'):
 FROM generate_series(1, 5000) i;
 ANALYZE t_10758;
 
--- Should return valid result, should not use SkipScan because of gating qual "s.ts IS NULL"
+-- Should return valid result. The gating qual "s.ts IS NULL" is applied above
+-- SkipScan, so SkipScan stays in use here.
 SET timescaledb.debug_skip_scan_info  TO true;
 SELECT count(*) FROM t_10758 AS s, LATERAL (SELECT DISTINCT r.ts FROM t_10758 AS r WHERE s.ts IS NULL) AS q;
 RESET timescaledb.debug_skip_scan_info;
