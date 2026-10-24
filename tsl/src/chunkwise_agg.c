@@ -193,7 +193,7 @@ copy_append_like_path(PlannerInfo *root, Path *path, List *new_subpaths, PathTar
 		CustomPath *custom_path = castNode(CustomPath, path);
 		ChunkAppendPath *chunk_append_path = (ChunkAppendPath *) custom_path;
 		ChunkAppendPath *new_chunk_append_path =
-			ts_chunk_append_path_copy(chunk_append_path, new_subpaths, pathtarget);
+			ts_chunk_append_path_copy(root, chunk_append_path, new_subpaths, pathtarget);
 		return &new_chunk_append_path->cpath.path;
 	}
 	else if (IsA(path, ProjectionPath))
