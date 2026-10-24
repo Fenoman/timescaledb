@@ -558,6 +558,23 @@ int main(void)
 }
 ")
 
+# PostgresPro keeps a pointer to the shared PgBackendStatus in
+# LocalPgBackendStatus, upstream PostgreSQL embeds the struct. The assignment
+# compiles only against the pointer layout.
+ts_check_pg_c_source_compiles(
+  TS_LOCAL_BEENTRY_STATUS_IS_POINTER
+  "
+#include \"postgres.h\"
+#include \"utils/backend_status.h\"
+int main(void)
+{
+  LocalPgBackendStatus local = { 0 };
+  PgBackendStatus *status = local.backendStatus;
+  (void) status;
+  return 0;
+}
+")
+
 # Some downstream builds add subtransaction callback events.
 ts_check_pg_c_source_compiles(
   TS_SUBXACT_EVENT_PRE_ABORT_SUB_EXISTS

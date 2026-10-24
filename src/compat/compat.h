@@ -707,6 +707,21 @@ pg_cmp_u32(uint32 a, uint32 b)
 #endif
 
 /*
+ * PostgresPro keeps a pointer to the shared PgBackendStatus in
+ * LocalPgBackendStatus, upstream PostgreSQL embeds the struct. Taking the
+ * address of the member reads the pointer itself as a status there.
+ */
+static inline const PgBackendStatus *
+ts_local_beentry_status(const LocalPgBackendStatus *local_beentry)
+{
+#if TS_LOCAL_BEENTRY_STATUS_IS_POINTER
+	return local_beentry->backendStatus;
+#else
+	return &local_beentry->backendStatus;
+#endif
+}
+
+/*
  * Some downstream builds add an out argument to is_parallel_safe(). The
  * imported planner code only needs the boolean result, and the server accepts
  * a NULL pointer for the extra argument.
