@@ -326,6 +326,60 @@ ts_rte_is_hypertable(const RangeTblEntry *rte)
 	return ht != NULL;
 }
 
+/*
+ * Tantor SE plans INSERT ... SELECT in parallel mode when its
+ * enable_parallel_insert setting is on and the target table has no
+ * parallel-unsafe defaults or triggers. The hypertable insert path is not
+ * safe for that: creating a chunk writes the catalog and draws a chunk id from
+ * a sequence, which PostgreSQL forbids during a parallel operation, so such an
+ * INSERT fails with "cannot execute nextval() during a parallel operation".
+ * Turn the setting off while a statement that modifies a hypertable is
+ * planned. Chunks are left alone: telling a chunk from a plain table costs a
+ * catalog scan per statement, which plain-table DML must not pay, and rows
+ * inserted straight into a chunk create no chunks. Upstream PostgreSQL has no
+ * such setting and the lookup happens once per backend.
+ *
+ * Returns the GUC nest level to restore with AtEOXact_GUC(), or 0 when nothing
+ * was changed.
+ */
+static int
+disable_parallel_insert_for_planning(const Query *parse)
+{
+	static int server_has_setting = -1;
+	const char *setting_name = "enable_parallel_insert";
+	const char *value;
+	const RangeTblEntry *rte;
+	int nestlevel;
+
+	if (server_has_setting < 0)
+		server_has_setting = (GetConfigOption(setting_name, true, false) != NULL);
+
+	if (!server_has_setting || parse->commandType == CMD_SELECT || parse->resultRelation == 0)
+		return 0;
+
+	rte = rt_fetch(parse->resultRelation, parse->rtable);
+	if (rte->rtekind != RTE_RELATION || !OidIsValid(rte->relid))
+		return 0;
+
+	if (!ts_rte_is_hypertable(rte))
+		return 0;
+
+	value = GetConfigOption(setting_name, false, false);
+	if (value == NULL || strcmp(value, "on") != 0)
+		return 0;
+
+	nestlevel = NewGUCNestLevel();
+	(void) set_config_option(setting_name,
+							 "off",
+							 PGC_SUSET,
+							 PGC_S_SESSION,
+							 GUC_ACTION_SAVE,
+							 true,
+							 0,
+							 false);
+	return nestlevel;
+}
+
 #define IS_UPDL_CMD(parse)                                                                         \
 	((parse)->commandType == CMD_UPDATE || (parse)->commandType == CMD_DELETE)
 
@@ -660,6 +714,8 @@ timescaledb_planner(Query *parse, const char *query_string, int cursor_opts,
 	 * modified between setjmp/longjmp calls.
 	 */
 	volatile bool reset_baserel_info = false;
+	/* Read after the planner call inside PG_TRY, so keep it out of registers. */
+	volatile int guc_nestlevel = 0;
 
 	/*
 	 * If we are in an aborted transaction, reject all queries.
@@ -734,6 +790,9 @@ timescaledb_planner(Query *parse, const char *query_string, int cursor_opts,
 			}
 		}
 
+		if (ts_extension_is_loaded_and_not_upgrading())
+			guc_nestlevel = disable_parallel_insert_for_planning(context.rootquery);
+
 		if (prev_planner_hook != NULL)
 		{
 			/* Call any earlier hooks */
@@ -760,6 +819,9 @@ timescaledb_planner(Query *parse, const char *query_string, int cursor_opts,
 #endif
 			);
 		}
+
+		if (guc_nestlevel > 0)
+			AtEOXact_GUC(false, guc_nestlevel);
 
 		if (ts_extension_is_loaded_and_not_upgrading())
 		{
