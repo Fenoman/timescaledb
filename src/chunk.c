@@ -3932,6 +3932,43 @@ lock_referenced_tables(Oid table_relid)
 	}
 }
 
+/*
+ * Chunks a drop_chunks() call applies to. The creation time is used for
+ * INTEGER dimensions queried with intervals or timestamps, and when the
+ * caller gave neither older_than nor newer_than.
+ */
+static Chunk *
+drop_chunks_find(Hypertable *ht, int64 older_than, int64 newer_than, Oid time_type, Oid arg_type,
+				 bool older_newer, uint64 *num_chunks, ScanTupLock *tuplock)
+{
+	if ((IS_INTEGER_TYPE(time_type) && (arg_type == INTERVALOID || IS_TIMESTAMP_TYPE(arg_type))) ||
+		!older_newer)
+		return get_chunks_in_creation_time_range(ht,
+												 older_than,
+												 newer_than,
+												 CurrentMemoryContext,
+												 num_chunks,
+												 tuplock);
+
+	return get_chunks_in_time_range(ht,
+									older_than,
+									newer_than,
+									CurrentMemoryContext,
+									num_chunks,
+									tuplock);
+}
+
+static bool
+drop_chunks_relid_locked(const Chunk *found, uint64 num_found, Oid relid)
+{
+	for (uint64 i = 0; i < num_found; i++)
+	{
+		if (found[i].fd.relid == relid)
+			return true;
+	}
+	return false;
+}
+
 List *
 ts_chunk_do_drop_chunks(Hypertable *ht, int64 older_than, int64 newer_than, int32 log_level,
 						Oid time_type, Oid arg_type, bool older_newer)
@@ -3947,6 +3984,8 @@ ts_chunk_do_drop_chunks(Hypertable *ht, int64 older_than, int64 newer_than, int3
 		.waitpolicy = LockWaitBlock,
 		.lockmode = LockTupleExclusive,
 	};
+
+	const int32 osm_chunk_id = ts_chunk_get_osm_chunk_id(hypertable_id);
 
 	ts_hypertable_permissions_check(ht->main_table_relid, GetUserId());
 
@@ -3983,44 +4022,59 @@ ts_chunk_do_drop_chunks(Hypertable *ht, int64 older_than, int64 newer_than, int3
 
 	PG_TRY();
 	{
+		Chunk *found;
+		uint64 num_found = 0;
+
 		/*
-		 * For INTEGER type dimensions, we support querying using intervals or any
-		 * timestamp or date input. For such INTEGER dimensions, we get the chunks
-		 * using their creation time values.
+		 * Find the chunks without locking their catalog rows, lock the chunk
+		 * relations, and only then read the rows again with row locks.
+		 *
+		 * compress_chunk() holds an ExclusiveLock on the chunk while it works
+		 * and updates the chunk row at the end. Locking the rows first and the
+		 * relations afterwards deadlocks with a compression in progress: the
+		 * compression waits for our row lock and we wait for its relation
+		 * lock. With the relation lock taken first we wait for the compression
+		 * to finish and the second pass reads the state it left behind.
 		 */
-		if (IS_INTEGER_TYPE(time_type) && (arg_type == INTERVALOID || IS_TIMESTAMP_TYPE(arg_type)))
+		found = drop_chunks_find(ht,
+								 older_than,
+								 newer_than,
+								 time_type,
+								 arg_type,
+								 older_newer,
+								 &num_found,
+								 NULL);
+
+		for (uint64 i = 0; i < num_found; i++)
 		{
-			chunks = get_chunks_in_creation_time_range(ht,
-													   older_than,
-													   newer_than,
-													   CurrentMemoryContext,
-													   &num_chunks,
-													   &tuplock);
+			/* The tiered chunk is never dropped here, so do not block it. */
+			if (found[i].fd.id != osm_chunk_id)
+				LockRelationOid(found[i].fd.relid, AccessExclusiveLock);
 		}
-		else
-		{
-			if (!older_newer)
-			{
-				chunks = get_chunks_in_creation_time_range(ht,
-														   older_than,
-														   newer_than,
-														   CurrentMemoryContext,
-														   &num_chunks,
-														   &tuplock);
-			}
-			else
-			{
-				chunks = get_chunks_in_time_range(ht,
-												  older_than,
-												  newer_than,
-												  CurrentMemoryContext,
-												  &num_chunks,
-												  &tuplock);
-			}
-		}
+
+		chunks = drop_chunks_find(ht,
+								  older_than,
+								  newer_than,
+								  time_type,
+								  arg_type,
+								  older_newer,
+								  &num_chunks,
+								  &tuplock);
 
 		for (uint64 i = 0; i < num_chunks; i++)
 		{
+			/*
+			 * A chunk that appeared between the two passes is not locked yet.
+			 * Its row lock is already held, so take the relation lock only
+			 * when that does not block.
+			 */
+			if (chunks[i].fd.id != osm_chunk_id &&
+				!drop_chunks_relid_locked(found, num_found, chunks[i].fd.relid) &&
+				!ConditionalLockRelationOid(chunks[i].fd.relid, AccessExclusiveLock))
+				ereport(ERROR,
+						(errcode(ERRCODE_LOCK_NOT_AVAILABLE),
+						 errmsg("chunk is being modified by another transaction")));
+
 			lock_chunk_for_drop(chunks[i].fd.id);
 		}
 	}
@@ -4042,7 +4096,6 @@ ts_chunk_do_drop_chunks(Hypertable *ht, int64 older_than, int64 newer_than, int3
 
 	DEBUG_WAITPOINT("drop_chunks_chunks_found");
 
-	int32 osm_chunk_id = ts_chunk_get_osm_chunk_id(ht->fd.id);
 	if (has_continuous_aggs)
 	{
 		/* Exclusively lock all chunks, and invalidate the continuous
