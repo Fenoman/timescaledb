@@ -20,6 +20,9 @@ timezone='US/Pacific'
 # Set extra_float_digits=0 to retain the pre PG12 rounding behaviour
 # of floating point numbers, which are needed to make our tests work.
 extra_float_digits=0
+# The expected outputs that show compressed sizes assume pglz, the upstream
+# default. PostgresPro defaults to lz4.
+default_toast_compression=pglz
 
 @TELEMETRY_DEFAULT_SETTING@
 
