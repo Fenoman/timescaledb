@@ -546,7 +546,7 @@ copy_tuples_for_split(SplitContext *scontext)
 
 		LockBuffer(buf, BUFFER_LOCK_SHARE);
 
-		switch (HeapTupleSatisfiesVacuum(tuple, scontext->cutoffs.OldestXmin, buf))
+		switch (ts_heaptuple_satisfies_vacuum(tuple, scontext->cutoffs.OldestXmin, buf))
 		{
 			case HEAPTUPLE_DEAD:
 				/* Definitely dead */

@@ -831,14 +831,12 @@ ExecInsert(ModifyTableContext *context,
 			 */
 		vlock:
 			specConflict = false;
-			if (!ExecCheckIndexConstraints(resultRelInfo,
-										   slot,
-										   estate,
-										   &conflictTid,
-#if PG18_GE
-										   NULL,
-#endif
-										   arbiterIndexes))
+			if (!ts_exec_check_index_constraints(resultRelInfo,
+												 slot,
+												 estate,
+												 &conflictTid,
+												 NULL,
+												 arbiterIndexes))
 			{
 				/* committed conflict tuple found */
 				if (onconflict == ONCONFLICT_UPDATE)

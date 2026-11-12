@@ -833,6 +833,72 @@ ts_heaptuple_copy_xids(HeapTuple dest, const HeapTupleData *src)
 }
 
 /*
+ * Postgres Pro Enterprise adds copy_xids to HeapTupleSatisfiesVacuum(). When
+ * it is true, the function reads the 64-bit xmin and xmax of the tuple from
+ * the page in buffer, using the xid bases of the page, instead of trusting the
+ * ids already in HeapTupleData. The core copy loop for CLUSTER passes true for
+ * tuples it got from a heap scan, and the callers here do the same thing.
+ */
+#if TS_HEAPTUPLE_SATISFIES_VACUUM_HAS_COPY_XIDS
+#define ts_heaptuple_satisfies_vacuum(tuple, oldest_xmin, buffer)                                  \
+	HeapTupleSatisfiesVacuum(tuple, oldest_xmin, buffer, true)
+#else
+#define ts_heaptuple_satisfies_vacuum(tuple, oldest_xmin, buffer)                                  \
+	HeapTupleSatisfiesVacuum(tuple, oldest_xmin, buffer)
+#endif
+
+/*
+ * Postgres Pro Enterprise returns the persistence of a tablespace through an
+ * extra argument of get_tablespace_oid(). The function accepts NULL there, as
+ * core callers that only need the Oid pass.
+ */
+#if TS_GET_TABLESPACE_OID_HAS_PERSISTENCE
+#define ts_get_tablespace_oid(name, missing_ok) get_tablespace_oid(name, NULL, missing_ok)
+#else
+#define ts_get_tablespace_oid(name, missing_ok) get_tablespace_oid(name, missing_ok)
+#endif
+
+/*
+ * Postgres Pro Enterprise reports the relation of the conflicting tuple
+ * through an extra argument of ExecCheckIndexConstraints(), because a global
+ * index can find the conflict in another relation. The argument must not be
+ * NULL there. Chunks are not partitions and cannot have global indexes, so a
+ * conflict outside the chunk is unexpected, and resolving it against the chunk
+ * would lock or update the wrong tuple.
+ */
+#if TS_EXEC_CHECK_INDEX_CONSTRAINTS_HAS_TABLE_OID
+static inline bool
+ts_exec_check_index_constraints(ResultRelInfo *rri, TupleTableSlot *slot, EState *estate,
+								ItemPointer conflict_tid, ItemPointer tupleid,
+								List *arbiter_indexes)
+{
+	Oid conflict_relid = InvalidOid;
+	bool no_conflict = ExecCheckIndexConstraints(rri,
+												 slot,
+												 estate,
+												 conflict_tid,
+												 &conflict_relid,
+												 tupleid,
+												 arbiter_indexes);
+
+	if (!no_conflict && OidIsValid(conflict_relid) &&
+		conflict_relid != RelationGetRelid(rri->ri_RelationDesc))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("conflicting tuple found in relation \"%s\", not in chunk \"%s\"",
+						get_rel_name(conflict_relid),
+						RelationGetRelationName(rri->ri_RelationDesc))));
+	return no_conflict;
+}
+#elif PG18_GE
+#define ts_exec_check_index_constraints(rri, slot, estate, conflict_tid, tupleid, arbiter_indexes) \
+	ExecCheckIndexConstraints(rri, slot, estate, conflict_tid, tupleid, arbiter_indexes)
+#else
+#define ts_exec_check_index_constraints(rri, slot, estate, conflict_tid, tupleid, arbiter_indexes) \
+	ExecCheckIndexConstraints(rri, slot, estate, conflict_tid, arbiter_indexes)
+#endif
+
+/*
  * PG18 renames ri_ConstraintExprs to ri_CheckConstraintExprs
  * Add macros so we can use the new naming for older versions.
  * https://github.com/postgres/postgres/commit/9a9ead11

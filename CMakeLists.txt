@@ -622,6 +622,53 @@ int main(void)
 }
 ")
 
+# Postgres Pro Enterprise adds a copy_xids argument to
+# HeapTupleSatisfiesVacuum(). A call with four arguments compiles only there.
+ts_check_pg_c_source_compiles(
+  TS_HEAPTUPLE_SATISFIES_VACUUM_HAS_COPY_XIDS
+  "
+#include \"postgres.h\"
+#include \"access/heapam.h\"
+int main(void)
+{
+  HeapTuple tuple = NULL;
+  (void) HeapTupleSatisfiesVacuum(tuple, InvalidTransactionId, InvalidBuffer, true);
+  return 0;
+}
+")
+
+# Postgres Pro Enterprise returns the persistence of a tablespace through an
+# extra argument of get_tablespace_oid().
+ts_check_pg_c_source_compiles(
+  TS_GET_TABLESPACE_OID_HAS_PERSISTENCE
+  "
+#include \"postgres.h\"
+#include \"commands/tablespace.h\"
+int main(void)
+{
+  char persistence = 0;
+  (void) get_tablespace_oid(\"pg_default\", &persistence, true);
+  return 0;
+}
+")
+
+# Postgres Pro Enterprise reports the relation of a conflicting tuple, which a
+# global index can find in another relation, through an extra argument of
+# ExecCheckIndexConstraints().
+ts_check_pg_c_source_compiles(
+  TS_EXEC_CHECK_INDEX_CONSTRAINTS_HAS_TABLE_OID
+  "
+#include \"postgres.h\"
+#include \"executor/executor.h\"
+int main(void)
+{
+  ItemPointerData conflict_tid;
+  Oid conflict_relid = InvalidOid;
+  (void) ExecCheckIndexConstraints(NULL, NULL, NULL, &conflict_tid, &conflict_relid, NULL, NIL);
+  return 0;
+}
+")
+
 find_path(
   PG_SOURCE_DIR src/include/pg_config.h.in
   HINTS $ENV{HOME} $ENV{HOME}/projects $ENV{HOME}/Projects

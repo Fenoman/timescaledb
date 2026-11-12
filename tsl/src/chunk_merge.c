@@ -579,7 +579,7 @@ copy_table_data_with_map(Relation fromrel, Relation torel, TupleConversionMap *m
 		LockBuffer(buf, BUFFER_LOCK_SHARE);
 #endif
 
-		switch (HeapTupleSatisfiesVacuum(tuple, cutoffs->OldestXmin, buf))
+		switch (ts_heaptuple_satisfies_vacuum(tuple, cutoffs->OldestXmin, buf))
 		{
 			case HEAPTUPLE_DEAD:
 				isdead = true;
