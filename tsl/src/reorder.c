@@ -108,9 +108,9 @@ tsl_move_chunk(PG_FUNCTION_ARGS)
 {
 	Oid chunk_id = PG_ARGISNULL(0) ? InvalidOid : PG_GETARG_OID(0);
 	Oid destination_tablespace =
-		PG_ARGISNULL(1) ? InvalidOid : get_tablespace_oid(PG_GETARG_NAME(1)->data, false);
+		PG_ARGISNULL(1) ? InvalidOid : ts_get_tablespace_oid(PG_GETARG_NAME(1)->data, false);
 	Oid index_destination_tablespace =
-		PG_ARGISNULL(2) ? InvalidOid : get_tablespace_oid(PG_GETARG_NAME(2)->data, false);
+		PG_ARGISNULL(2) ? InvalidOid : ts_get_tablespace_oid(PG_GETARG_NAME(2)->data, false);
 	Oid index_id = PG_ARGISNULL(3) ? InvalidOid : PG_GETARG_OID(3);
 	bool verbose = PG_ARGISNULL(4) ? false : PG_GETARG_BOOL(4);
 	Chunk *chunk;

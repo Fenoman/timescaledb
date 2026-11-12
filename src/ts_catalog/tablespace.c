@@ -83,7 +83,7 @@ tablespace_tuple_found(TupleInfo *ti, void *data)
 	bool should_free;
 	HeapTuple tuple = ts_scanner_fetch_heap_tuple(ti, false, &should_free);
 	FormData_tablespace *form = (FormData_tablespace *) GETSTRUCT(tuple);
-	Oid tspcoid = get_tablespace_oid(NameStr(form->tablespace_name), true);
+	Oid tspcoid = ts_get_tablespace_oid(NameStr(form->tablespace_name), true);
 
 	if (NULL != tspcs)
 	{
@@ -239,7 +239,7 @@ revoke_tuple_found(TupleInfo *ti, void *data)
 	Assert(!isnull);
 	tablespace_name = slot_getattr(ti->slot, Anum_tablespace_tablespace_name, &isnull);
 	Assert(!isnull);
-	tspcoid = get_tablespace_oid(NameStr(*DatumGetName(tablespace_name)), false);
+	tspcoid = ts_get_tablespace_oid(NameStr(*DatumGetName(tablespace_name)), false);
 	ht = ts_hypertable_cache_get_entry_by_id(info->hcache, DatumGetInt32(hyper_id));
 	relowner = ts_rel_get_owner(ht->main_table_relid);
 
@@ -316,7 +316,7 @@ revoke_role_tuple_found(TupleInfo *ti, void *data)
 	Assert(!isnull);
 	tablespace_name = slot_getattr(ti->slot, Anum_tablespace_tablespace_name, &isnull);
 	Assert(!isnull);
-	tspcoid = get_tablespace_oid(NameStr(*DatumGetName(tablespace_name)), false);
+	tspcoid = ts_get_tablespace_oid(NameStr(*DatumGetName(tablespace_name)), false);
 	ht = ts_hypertable_cache_get_entry_by_id(info->hcache, DatumGetInt32(hyper_id));
 	relowner = ts_rel_get_owner(ht->main_table_relid);
 
@@ -585,7 +585,7 @@ ts_tablespace_attach_internal(Name tspcname, Oid hypertable_oid, bool if_not_att
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("invalid hypertable")));
 	}
 
-	tspc_oid = get_tablespace_oid(NameStr(*tspcname), true);
+	tspc_oid = ts_get_tablespace_oid(NameStr(*tspcname), true);
 
 	if (!OidIsValid(tspc_oid))
 	{
@@ -760,7 +760,7 @@ ts_tablespace_detach(PG_FUNCTION_ARGS)
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE), errmsg("invalid hypertable")));
 	}
 
-	tspcoid = get_tablespace_oid(NameStr(*tspcname), true);
+	tspcoid = ts_get_tablespace_oid(NameStr(*tspcname), true);
 
 	if (!OidIsValid(tspcoid))
 	{
