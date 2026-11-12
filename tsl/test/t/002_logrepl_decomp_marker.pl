@@ -50,6 +50,12 @@ sub query_generates_wal
 	# always the final column)
 	$result =~ s/\s+creation_time.*//g;
 
+	# A compressed chunk has no replica identity index. Upstream PostgreSQL
+	# logs no old tuple for a DELETE from it, Postgres Pro Enterprise logs the
+	# whole old tuple. The markers around the change are what is checked here,
+	# not how the server logs the deleted row.
+	$result =~ s/^(table \S+_compressed: DELETE: ).*$/$1(no-tuple-data)/gm;
+
 	# Strip leading and trailing whitespace
 	$result =~ s/^\s+|\s+$//g;
 
