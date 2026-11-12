@@ -1735,7 +1735,7 @@ test_delta_size_and_placements()
 }
 
 static Datum *
-generate_uuidv7(int n)
+generate_test_uuids(int n)
 {
 	Assert(n > 0);
 	Datum *uuids = palloc(n * sizeof(Datum));
@@ -1755,7 +1755,7 @@ static void
 test_uuid_dictionary_simple()
 {
 	/* Make sure dictionary makes sense by only compressing 1/4 of the elements */
-	Datum *uuids = generate_uuidv7((TEST_ELEMENTS + 3) / 4);
+	Datum *uuids = generate_test_uuids((TEST_ELEMENTS + 3) / 4);
 	Compressor *compressor = dictionary_compressor_for_type(UUIDOID);
 
 	for (int i = 0; i < TEST_ELEMENTS; ++i)
@@ -1792,7 +1792,7 @@ test_uuid_dictionary_simple()
 static void
 test_uuid_array_simple()
 {
-	Datum *uuids = generate_uuidv7(TEST_ELEMENTS);
+	Datum *uuids = generate_test_uuids(TEST_ELEMENTS);
 	Compressor *compressor = array_compressor_for_type(UUIDOID);
 
 	for (int i = 0; i < TEST_ELEMENTS; ++i)
@@ -1826,7 +1826,7 @@ test_uuid_array_simple()
 static void
 test_uuid_compressor_simple(int null_modulo, int value_modulo)
 {
-	Datum *uuids = generate_uuidv7(TEST_ELEMENTS);
+	Datum *uuids = generate_test_uuids(TEST_ELEMENTS);
 	UuidCompressor *compressor = uuid_compressor_alloc();
 	bool has_nulls = false;
 
@@ -1951,7 +1951,7 @@ test_uuid_compressor_switch_to_dictionary(int modulo)
 	/* Make sure the compressor switches to dictionary compression when the cardinality is
 	 * not high enough to justify the overhead of the uuid compressor.
 	 */
-	Datum *uuids = generate_uuidv7(TEST_ELEMENTS);
+	Datum *uuids = generate_test_uuids(TEST_ELEMENTS);
 	UuidCompressor *compressor = uuid_compressor_alloc();
 
 	for (int i = 0; i < TEST_ELEMENTS; ++i)
