@@ -530,6 +530,31 @@ chunk_collision_resolve(const Hypertable *ht, Hypercube *cube, const Point *p)
 	chunk_scan_ctx_destroy(&scanctx);
 }
 
+/*
+ * Attribute option that PostgreSQL servers with attribute versioning keep on
+ * every column. The server sets it on the columns of a new chunk itself and
+ * ignores a value passed through ALTER TABLE.
+ */
+#define TS_ATTRIBUTE_VERSION_ATTOPTION "pg_attver"
+
+static List *
+remove_attribute_version_option(List *options)
+{
+	ListCell *lc;
+
+	foreach (lc, options)
+	{
+		DefElem *def = lfirst_node(DefElem, lc);
+
+		if (def->defnamespace == NULL && strcmp(def->defname, TS_ATTRIBUTE_VERSION_ATTOPTION) == 0)
+		{
+			options = foreach_delete_current(options, lc);
+		}
+	}
+
+	return options;
+}
+
 /* applies the attributes and statistics target for columns on the hypertable
    to columns on the chunk */
 static void
@@ -566,12 +591,17 @@ set_attoptions(Relation ht_rel, Oid chunk_oid)
 
 		if (!isnull)
 		{
-			AlterTableCmd *cmd = makeNode(AlterTableCmd);
+			List *defs = remove_attribute_version_option(untransformRelOptions(options));
 
-			cmd->subtype = AT_SetOptions;
-			cmd->name = attributeName;
-			cmd->def = (Node *) untransformRelOptions(options);
-			alter_cmds = lappend(alter_cmds, cmd);
+			if (defs != NIL)
+			{
+				AlterTableCmd *cmd = makeNode(AlterTableCmd);
+
+				cmd->subtype = AT_SetOptions;
+				cmd->name = attributeName;
+				cmd->def = (Node *) defs;
+				alter_cmds = lappend(alter_cmds, cmd);
+			}
 		}
 
 		/*
