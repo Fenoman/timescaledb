@@ -33,7 +33,9 @@ SELECT * FROM alter_before;
 -- Show that deleted column is marked as dropped and that attnums are
 -- now different for the root table and the chunk
 -- PG17 made attstattarget NULLABLE and changed the default from -1 to NULL
-SELECT c.relname, a.attname, a.attnum, (SELECT array_agg(o) FROM unnest(a.attoptions) o WHERE o NOT LIKE 'pg_attver=%') AS attoptions, CASE WHEN a.attstattarget = -1 OR (a.attisdropped AND a.attstattarget = 0) THEN NULL ELSE a.attstattarget END attstattarget, a.attstorage FROM pg_attribute a, pg_class c
+-- pg_attver is an option that servers with attribute versioning keep on every
+-- column, with a value that differs between runs
+SELECT c.relname, a.attname, a.attnum, (SELECT array_agg(opt) FROM unnest(a.attoptions) opt WHERE opt NOT LIKE 'pg_attver=%') attoptions, CASE WHEN a.attstattarget = -1 OR (a.attisdropped AND a.attstattarget = 0) THEN NULL ELSE a.attstattarget END attstattarget, a.attstorage FROM pg_attribute a, pg_class c
 WHERE a.attrelid = c.oid
 AND (c.relname LIKE '_hyper_1%_chunk' OR c.relname = 'alter_before')
 AND a.attnum > 0
