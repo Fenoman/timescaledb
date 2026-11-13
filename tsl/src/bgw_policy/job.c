@@ -862,6 +862,19 @@ job_execute(BgwJob *job)
 			PopActiveSnapshot();
 		}
 		CommitTransactionCommand();
+
+		/*
+		 * The portal only gives the job an active portal to hang snapshots
+		 * and memory on. It is never defined or started, so it is still in
+		 * the PORTAL_NEW state, and PortalDrop() of PostgreSQL 16.16, 17.12,
+		 * 18.7 and later refuses a portal that is being set up. Take it out
+		 * of that state first. The portal runs no query and has no resource
+		 * owner, so the failed state releases nothing that a plain drop
+		 * would keep.
+		 */
+		Assert(portal->queryDesc == NULL);
+		Assert(portal->resowner == NULL);
+		MarkPortalFailed(portal);
 		PortalDrop(portal, false);
 		ActivePortal = NULL;
 		PortalContext = NULL;
