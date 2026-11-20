@@ -737,12 +737,29 @@ scheduler_state_trans_automatic_all(HTAB *db_htab)
 {
 	HASH_SEQ_STATUS hash_seq;
 	DbHashEntry *current_entry;
+	List *stopped = NIL;
+	ListCell *cell;
 
 	hash_seq_init(&hash_seq, db_htab);
 	while ((current_entry = hash_seq_search(&hash_seq)) != NULL)
 	{
-		scheduler_state_trans_automatic(current_entry);
+		if (current_entry->state != STARTED)
+		{
+			scheduler_state_trans_automatic(current_entry);
+		}
+		else if (get_background_worker_pid(current_entry->db_scheduler_handle, NULL) ==
+				 BGWH_STOPPED)
+		{
+			stopped = lappend(stopped, current_entry);
+		}
 	}
+
+	/* Looking up a stopped worker's owner commits a transaction and ends active hash scans. */
+	foreach (cell, stopped)
+	{
+		scheduler_state_trans_automatic(lfirst(cell));
+	}
+	list_free(stopped);
 }
 
 /* This is called when we're going to shut down so we don't leave things messy*/
