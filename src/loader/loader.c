@@ -458,9 +458,9 @@ is_db_owner(Oid db_oid)
 	return OidIsValid(db_oid) && object_ownercheck(DatabaseRelationId, db_oid, GetUserId());
 }
 
-/* Whether the database may be used as template for CREATE DATABASE */
+/* A marked template needs no replacement scheduler after the copy. */
 static bool
-database_usable_as_template(const Oid db_oid)
+database_usable_as_template(const Oid db_oid, bool *is_template)
 {
 	Relation pg_database;
 	ScanKeyData entry[1];
@@ -488,7 +488,8 @@ database_usable_as_template(const Oid db_oid)
 	}
 
 	dbform = (Form_pg_database) GETSTRUCT(dbtuple);
-	usable = dbform->datallowconn && (dbform->datistemplate || is_db_owner(db_oid));
+	*is_template = dbform->datistemplate;
+	usable = dbform->datallowconn && (*is_template || is_db_owner(db_oid));
 
 	systable_endscan(scan);
 	table_close(pg_database, AccessShareLock);
@@ -638,12 +639,12 @@ notify_bg_workers_of_database_command(Node *stmt, ProcessUtilityContext context)
 					strcmp(option->defname, "template") == 0)
 				{
 					Oid db_oid = get_database_oid(defGetString(option), false);
+					bool is_template;
 
 					if (have_createdb_privilege() && OidIsValid(db_oid) &&
-						database_usable_as_template(db_oid))
+						database_usable_as_template(db_oid, &is_template))
 					{
-						/* The scheduler waits for the copy to commit before connecting. */
-						ts_bgw_message_send_and_wait(RESTART, db_oid);
+						ts_bgw_message_send_and_wait(is_template ? STOP : RESTART, db_oid);
 					}
 				}
 			}

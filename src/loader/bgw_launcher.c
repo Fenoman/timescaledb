@@ -129,6 +129,7 @@ typedef struct DbHashEntry
 	VirtualTransactionId vxid;
 	int state_transition_failures;
 	Oid owner_oid; /* role the scheduler connects as */
+	Oid started_owner_oid; /* owner passed to the registered worker */
 } DbHashEntry;
 
 static void scheduler_state_trans_enabled_to_allocated(DbHashEntry *entry);
@@ -332,7 +333,7 @@ ts_bgw_cluster_launcher_init(void)
 typedef struct SchedulerBgwExtra
 {
 	VirtualTransactionId vxid;
-	/* Role the scheduler connects as. InvalidOid if the database is gone. */
+	/* InvalidOid selects the bootstrap role for a PG16 owner without LOGIN. */
 	Oid owner_oid;
 } SchedulerBgwExtra;
 
@@ -515,7 +516,7 @@ scheduler_owner_oid(Oid datdba)
 
 	if (!HeapTupleIsValid(tup))
 	{
-		return InvalidOid;
+		return datdba; /* A missing role cannot authenticate. */
 	}
 	canlogin = ((Form_pg_authid) GETSTRUCT(tup))->rolcanlogin;
 	ReleaseSysCache(tup);
@@ -525,6 +526,27 @@ scheduler_owner_oid(Oid datdba)
 	}
 #endif
 	return datdba;
+}
+
+/* Read the current owner independently of the launcher's periodic scan. */
+static bool
+read_scheduler_owner(Oid db_oid, Oid *owner)
+{
+	HeapTuple tup;
+	bool found;
+
+	StartTransactionCommand();
+	(void) GetTransactionSnapshot();
+	tup = SearchSysCache1(DATABASEOID, ObjectIdGetDatum(db_oid));
+	found = HeapTupleIsValid(tup);
+	if (found)
+	{
+		Form_pg_database pgdb = (Form_pg_database) GETSTRUCT(tup);
+		*owner = scheduler_owner_oid(pgdb->datdba);
+		ReleaseSysCache(tup);
+	}
+	CommitTransactionCommand();
+	return found;
 }
 
 /*
@@ -637,6 +659,7 @@ scheduler_state_trans_allocated_to_started(DbHashEntry *entry)
 		return;
 	}
 	wait_for_background_worker_startup(entry->db_scheduler_handle, &worker_pid);
+	entry->started_owner_oid = entry->owner_oid;
 	SetInvalidVirtualTransactionId(entry->vxid);
 	scheduler_modify_state(entry, STARTED);
 }
@@ -692,7 +715,16 @@ scheduler_state_trans_automatic(DbHashEntry *entry)
 		case STARTED:
 			if (get_background_worker_pid(entry->db_scheduler_handle, NULL) == BGWH_STOPPED)
 			{
-				scheduler_state_trans_started_to_disabled(entry);
+				if (read_scheduler_owner(entry->db_oid, &entry->owner_oid) &&
+					entry->started_owner_oid != entry->owner_oid)
+				{
+					scheduler_state_trans_started_to_allocated(entry);
+					scheduler_state_trans_allocated_to_started(entry);
+				}
+				else
+				{
+					scheduler_state_trans_started_to_disabled(entry);
+				}
 			}
 			break;
 		case DISABLED:
@@ -870,13 +902,6 @@ launcher_handle_message(HTAB *db_htab)
 		return false;
 	}
 
-	/* A database created after the loop's scan has no entry yet. Rescan so
-	 * its owner is known before a scheduler is started for it. */
-	if (hash_search(db_htab, &message->db_oid, HASH_FIND, NULL) == NULL)
-	{
-		populate_database_htab(db_htab);
-	}
-
 	sender = BackendPidGetProc(message->sender_pid);
 	if (sender == NULL)
 	{
@@ -887,6 +912,17 @@ launcher_handle_message(HTAB *db_htab)
 	}
 
 	GET_VXID_FROM_PGPROC(vxid, *sender);
+
+	if (message->message_type != STOP)
+	{
+		Oid owner;
+		if (!read_scheduler_owner(message->db_oid, &owner))
+		{
+			ts_bgw_message_send_ack(message, ACK_FAILURE);
+			return true;
+		}
+		db_hash_entry_create_if_not_exists(db_htab, message->db_oid)->owner_oid = owner;
+	}
 
 	switch (message->message_type)
 	{
@@ -1034,6 +1070,7 @@ database_checks(void)
 {
 	Form_pg_database pgdb;
 	HeapTuple tuple;
+	Oid owner;
 
 	tuple = SearchSysCache1(DATABASEOID, ObjectIdGetDatum(MyDatabaseId));
 	if (!HeapTupleIsValid(tuple))
@@ -1062,6 +1099,14 @@ database_checks(void)
 						MyBgworkerEntry->bgw_name)));
 	}
 
+	/* Ownership can change while the registered worker waits for its transaction. */
+	owner = scheduler_owner_oid(pgdb->datdba);
+	if (GetAuthenticatedUserId() != (OidIsValid(owner) ? owner : BOOTSTRAP_SUPERUSERID))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				 errmsg("database owner changed while starting the TimescaleDB scheduler")));
+	}
 	ReleaseSysCache(tuple);
 }
 

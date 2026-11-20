@@ -319,9 +319,18 @@ CREATE EXTENSION timescaledb;
 RESET client_min_messages;
 SELECT wait_for_bgw_scheduler('db_owner_test');
 SELECT usename FROM pg_stat_activity WHERE application_name = 'TimescaleDB Background Worker Scheduler' AND datname = 'db_owner_test';
+-- Restarting in the ownership transaction picks up the committed owner.
+CREATE ROLE db_next_owner LOGIN;
+BEGIN;
+ALTER DATABASE db_owner_test OWNER TO db_next_owner;
+SELECT _timescaledb_functions.restart_background_workers() AS restarting \gset
+COMMIT;
+SELECT wait_for_bgw_scheduler('db_owner_test', 1, 100);
+SELECT usename = 'db_next_owner' AS expected_role FROM pg_stat_activity WHERE application_name = 'TimescaleDB Background Worker Scheduler' AND datname = 'db_owner_test';
 \c :TEST_DBNAME_2 :ROLE_SUPERUSER
 DROP DATABASE db_owner_test WITH (FORCE);
 DROP ROLE db_owner;
+DROP ROLE db_next_owner;
 
 -- test scheduler for an owner that cannot log in: the owner on PG17+, bootstrap superuser on PG16
 CREATE ROLE db_owner_nologin NOLOGIN;
@@ -336,9 +345,7 @@ FROM pg_stat_activity WHERE application_name = 'TimescaleDB Background Worker Sc
 \c :TEST_DBNAME_2 :ROLE_SUPERUSER
 DROP DATABASE db_owner_test WITH (FORCE);
 DROP ROLE db_owner_nologin;
--- The utility hook asks the launcher to restart the template scheduler before
--- PostgreSQL rejects CREATE DATABASE inside the transaction. The worker must
--- wait for the transaction before connecting, so a copy can use the template.
+-- A marked template stays free of scheduler connections before and after a copy.
 CREATE DATABASE db_template IS_TEMPLATE true;
 BEGIN;
 SAVEPOINT create_from_template;
@@ -351,6 +358,8 @@ SELECT count(*) AS template_schedulers
 FROM pg_stat_activity
 WHERE datname = 'db_template' AND backend_type = 'TimescaleDB Background Worker Scheduler';
 ROLLBACK;
+CREATE DATABASE db_from_template_db TEMPLATE db_template;
+DROP DATABASE db_from_template_db WITH (FORCE);
 ALTER DATABASE db_template IS_TEMPLATE false;
 DROP DATABASE db_template WITH (FORCE);
 
