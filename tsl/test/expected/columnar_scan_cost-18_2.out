@@ -138,9 +138,9 @@ select count(compress_chunk(c)) from show_chunks('estimate_count') c;
 vacuum analyze estimate_count;
 explain (analyze, timing off, summary off, buffers off) select * from estimate_count;
 --- QUERY PLAN ---
- Append  (cost=0.68..4450.50 rows=289500 width=20) (actual rows=289500.00 loops=1)
-   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk  (cost=0.68..1013.00 rows=96000 width=20) (actual rows=96000.00 loops=1)
-         ->  Seq Scan on _hyper_2_2_chunk_compressed  (cost=0.00..53.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
+ Append  (cost=0.68..4451.50 rows=289500 width=20) (actual rows=289500.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_2_chunk  (cost=0.68..1014.00 rows=96000 width=20) (actual rows=96000.00 loops=1)
+         ->  Seq Scan on _hyper_2_2_chunk_compressed  (cost=0.00..54.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
    ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_3_chunk  (cost=1.33..1990.00 rows=193500 width=20) (actual rows=193500.00 loops=1)
          ->  Seq Scan on _hyper_2_3_chunk_compressed  (cost=0.00..55.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
 
@@ -160,11 +160,11 @@ select count(compress_chunk(c)) from show_chunks('estimate_count') c;
 vacuum analyze estimate_count;
 explain (analyze, timing off, summary off, buffers off) select * from estimate_count;
 --- QUERY PLAN ---
- Append  (cost=0.23..1395.75 rows=85650 width=20) (actual rows=85650.00 loops=1)
+ Append  (cost=0.23..1396.75 rows=85650 width=20) (actual rows=85650.00 loops=1)
    ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_4_chunk  (cost=0.23..342.50 rows=28650 width=20) (actual rows=28650.00 loops=1)
          ->  Seq Scan on _hyper_2_4_chunk_compressed  (cost=0.00..56.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
-   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_5_chunk  (cost=0.42..625.00 rows=57000 width=20) (actual rows=57000.00 loops=1)
-         ->  Seq Scan on _hyper_2_5_chunk_compressed  (cost=0.00..55.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_5_chunk  (cost=0.42..626.00 rows=57000 width=20) (actual rows=57000.00 loops=1)
+         ->  Seq Scan on _hyper_2_5_chunk_compressed  (cost=0.00..56.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
 
 -- more different batch sizes
 truncate estimate_count;
@@ -262,9 +262,9 @@ where starelid in (
 ;
 explain (analyze, timing off, summary off, buffers off) select * from estimate_count;
 --- QUERY PLAN ---
- Append  (cost=10.04..45108.00 rows=3000000 width=20) (actual rows=289500.00 loops=1)
-   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_11_chunk  (cost=10.04..15053.00 rows=1500000 width=20) (actual rows=96000.00 loops=1)
-         ->  Seq Scan on _hyper_2_11_chunk_compressed  (cost=0.00..53.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
+ Append  (cost=10.04..45109.00 rows=3000000 width=20) (actual rows=289500.00 loops=1)
+   ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_11_chunk  (cost=10.04..15054.00 rows=1500000 width=20) (actual rows=96000.00 loops=1)
+         ->  Seq Scan on _hyper_2_11_chunk_compressed  (cost=0.00..54.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
    ->  Custom Scan (TimescaleDBColumnarScan) on _hyper_2_12_chunk  (cost=10.04..15055.00 rows=1500000 width=20) (actual rows=193500.00 loops=1)
          ->  Seq Scan on _hyper_2_12_chunk_compressed  (cost=0.00..55.00 rows=1500 width=88) (actual rows=1500.00 loops=1)
 

@@ -767,13 +767,9 @@ FROM pg_stat_activity WHERE application_name = 'TimescaleDB Background Worker Sc
 \c :TEST_DBNAME_2 :ROLE_SUPERUSER
 DROP DATABASE db_owner_test WITH (FORCE);
 DROP ROLE db_owner_nologin;
--- Creating a database from a template database must not start a scheduler
--- there: a scheduler started for the request connects to the template and
--- waits for this transaction, which is exactly what makes CREATE DATABASE fail
--- with "source database is being accessed by other users". Parsing the
--- statement inside a transaction sends the request to the launcher while the
--- statement itself is rejected, so the template can be inspected before the
--- transaction ends.
+-- The utility hook asks the launcher to restart the template scheduler before
+-- PostgreSQL rejects CREATE DATABASE inside the transaction. The worker must
+-- wait for the transaction before connecting, so a copy can use the template.
 CREATE DATABASE db_template IS_TEMPLATE true;
 BEGIN;
 SAVEPOINT create_from_template;
