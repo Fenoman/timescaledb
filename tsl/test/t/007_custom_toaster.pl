@@ -92,7 +92,9 @@ sub compress_and_count_toast_wal
 		])))
 	{
 		my ($record_type, $count) = split(/\|/, $line);
-		$counts{$record_type} = $count;
+		# pg_walinspect appends +INIT when the record initializes a heap page.
+		$record_type =~ s/\+INIT\z//;
+		$counts{$record_type} += $count;
 	}
 
 	return \%counts;
