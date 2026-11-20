@@ -3894,7 +3894,6 @@ process_index_chunk_multitransaction(int32 hypertable_id, Oid chunk_relid, void 
 	if (chunk == NULL)
 	{
 		table_close(chunk_rel, NoLock);
-		ts_catalog_restore_user(&sec_ctx);
 		PopActiveSnapshot();
 		CommitTransactionCommand();
 		elog(DEBUG1, "skipping index creation for missing chunk %u", chunk_relid);
