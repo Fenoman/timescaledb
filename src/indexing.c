@@ -27,6 +27,7 @@
 #include <utils/syscache.h>
 
 #include "annotations.h"
+#include "compat/compat.h"
 #include "dimension.h"
 #include "errors.h"
 #include "guc.h"
@@ -480,7 +481,7 @@ ts_indexing_root_table_create_index(IndexStmt *stmt, const char *queryString,
 	/* DefineIndex checks schema and tablespace permissions together */
 	if (!check_schema_permission)
 	{
-		Oid tablespace = stmt->tableSpace ? get_tablespace_oid(stmt->tableSpace, false) :
+		Oid tablespace = stmt->tableSpace ? ts_get_tablespace_oid(stmt->tableSpace, false) :
 											GetDefaultTablespace(get_rel_persistence(relid), false);
 
 		if (OidIsValid(tablespace) && tablespace != MyDatabaseTableSpace)
